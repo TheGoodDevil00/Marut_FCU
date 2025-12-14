@@ -39,7 +39,7 @@ The Fixed Wing FCU development focuses on the core functionalities required for 
 * **BMP280/180 Barometer Interface**: Integration of barometric sensors for accurate altitude readings, including I2C communication, calibration, and conversion to altitude for telemetry and altitude hold.
 * **9-Axis IMU Driver Code**: Development of driver code for a 9-axis IMU combining MPU6050 and QMC5883L for precise orientation sensing.
 * **MAVLink Telemetry Integration**: Single-sided telemetry from the fixed-wing FCU to ground station software like QGC or Mission Planner for real-time monitoring.
-* **Fixed-wing Control Surface Algorithms**: Algorithms translating desired maneuvers into control surface deflections using PID loops for stability and precision.  <- We are here right now
+* **Fixed-wing Control Surface Algorithms**: Algorithms translating desired maneuvers into control surface deflections using PID loops for stability and precision.  
 
 <img width="1824" height="544" alt="Gemini_Generated_Image_fer6s9fer6s9fer6" src="https://github.com/user-attachments/assets/dd8dff25-a098-44ce-99b4-d04326f1ef4c" />
 
@@ -49,7 +49,7 @@ The Quad FCU development addresses multirotor-specific challenges.
 
 * **Gyroscope Interface (MPU6050/MPU9250)**: Integration of IMU for angular rate data to detect and correct roll, pitch, and yaw using high-frequency readings and filtering.
 * **3-input PID Stabilization Code**: Optimized PID system using gyroscope data to stabilize the quadcopter across all rotational axes with tuned gains.
-* **Quad Control Surface Algorithms**: Algorithms converting desired maneuvers into differential thrust commands for each motor, coordinating with PID stabilization for stable and controllable flight.
+* **Quad Control Surface Algorithms**: Algorithms converting desired maneuvers into differential thrust commands for each motor, coordinating with PID stabilization for stable and controllable flight. <- We are here right now
 
 ## License
 
