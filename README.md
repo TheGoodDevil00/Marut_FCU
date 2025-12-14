@@ -62,13 +62,15 @@ Marut is developed as part of a student-led initiative at **AISSMS IOIT**, drive
 The Fixed Wing FCU development focuses on the core functionalities required for stable and controllable flight in fixed-wing aircraft.
 
 * **ESC Driver Code**: Development of robust and efficient Electronic Speed Controller (ESC) driver code is paramount. This code will precisely control the speed and direction of the aircraft's motor(s), enabling thrust regulation for ascent, descent, and forward flight, including PWM and DShot protocols and motor synchronization.
-* 
+  
 * **SG90 & MG995 Servo Control Code**: Precise control code for hobby servos like SG90 and MG995 to manipulate control surfaces (ailerons, elevators, rudders) for pitch, roll, and yaw. Includes PWM generation, calibration, and feedback handling.
-* 
+  
 * **PPM & PWM RX Input Code**: Code to interpret signals from radio receivers (PPM & PWM), translating stick movements into FCU commands with error checking and fail-safe mechanisms.
+  
 * **BMP280/180 Barometer Interface**: Integration of barometric sensors for accurate altitude readings, including I2C communication, calibration, and conversion to altitude for telemetry and altitude hold.
-* 
+  
 * **9-Axis IMU Driver Code**: Development of driver code for a 9-axis IMU combining MPU6050 and QMC5883L for precise orientation sensing.
+  
 * **MAVLink Telemetry Integration**: Single-sided telemetry from the fixed-wing FCU to ground station software like QGC or Mission Planner for real-time monitoring.
   
 <img width="1824" height="544" alt="Gemini_Generated_Image_fer6s9fer6s9fer6" src="https://github.com/user-attachments/assets/dd8dff25-a098-44ce-99b4-d04326f1ef4c" />
@@ -78,12 +80,13 @@ The Fixed Wing FCU development focuses on the core functionalities required for 
 The Quad FCU development addresses multirotor-specific challenges.
 
 * **Gyroscope Interface (MPU6050/MPU9250)**: Integration of IMU for angular rate data to detect and correct roll, pitch, and yaw using high-frequency readings and filtering.
-* 
+ 
 * **3-input PID Stabilization Code**: Optimized PID system using gyroscope data to stabilize the quadcopter across all rotational axes with tuned gains.
+  
 * **Quad Control Surface Algorithms**: Algorithms converting desired maneuvers into differential thrust commands for each motor, coordinating with PID stabilization for stable and controllable flight. <- We are here right now
-* 
+  
 * **Real-Time PID tuning support**:Add optionalsupport for realtime P,I and D manipulation using the various control knobs present on RC transmitters with appropriate channel mapping.
-* 
+  
 * **Acro/Sport, Auto-level and Altitude hold support**:Develop complex control algorithms for the support of these 3 mdoes using various concepts like 3 input cascaded PID, Complimentary and Kalman filters. <- We are here right now
 
 <img width="1129" height="347" alt="image" src="https://github.com/user-attachments/assets/9224717d-4b4a-41bb-8fdc-dcd12f7c583a" />
@@ -94,24 +97,22 @@ The Hybrid VTOL development within Marut focuses on enabling safe, stable, and r
 
 The primary development goals are outlined below:
 
-- **Stable Multirotor Hover Baseline**  
+* **Stable Multirotor Hover Baseline**  
   Establish a reliable multirotor control foundation with tightly tuned attitude and rate controllers. This ensures predictable behavior during vertical takeoff, landing, and low-speed operations, which are critical for hybrid VTOL platforms.
 
-- **Robust Attitude Estimation Across Regimes**  
+* **Robust Attitude Estimation Across Regimes**  
   Maintain accurate roll, pitch, and yaw estimation during high-vibration hover, low-airspeed transition, and forward-flight conditions using IMU sensor fusion and adaptive filtering techniques.
 
-- **Smooth Multirotor–Fixed-Wing Transition Handling**  
+* **Smooth Multirotor–Fixed-Wing Transition Handling**  
   Design control logic to manage gradual authority handoff between multirotor thrust-based control and fixed-wing aerodynamic control surfaces, minimizing transient instability during transition phases.
 
-- **Mode-Safe Transition and Recovery**  
+* **Mode-Safe Transition and Recovery**  
   Implement safeguards to allow seamless reversion to multirotor stabilization in the event of transition failure, loss of airspeed, or pilot intervention, prioritizing vehicle recoverability and safety.
 
-- **Progressive Expansion Toward Fixed-Wing Cruise Control**  
+* **Progressive Expansion Toward Fixed-Wing Cruise Control**  
   Lay the groundwork for future fixed-wing cruise stabilization and navigation support by maintaining clean separation between hover, transition, and forward-flight control layers.
 
   
-
-
 ## License
 
 This project is **open for collaboration within the institution**.
