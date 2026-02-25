@@ -1,0 +1,133 @@
+#include "stm32f4xx_hal.h"
+#include <stdint.h>
+#include <stdio.h>
+#include <math.h>
+#include "mpu6050_port.h"
+
+extern I2C_HandleTypeDef hi2c1;
+
+/* ------------------------------------------------------------------------
+   Keep function signatures identical to avoid breaking other code
+   ------------------------------------------------------------------------ */
+
+/* NOTE:
+ * This file assumes the gyro globals (Gx, Gy, Gz) are declared somewhere
+ * (e.g. in mpu6050_port.h). If they are not, declare them as:
+ *   float Gx, Gy, Gz;
+ * in a single C file only.
+ */
+
+/* ---------------- Filter state (internal to this file) ----------------- */
+static float filt_roll = 0.0f;    // degrees
+static float filt_pitch = 0.0f;   // degrees
+static uint32_t last_time = 0;    // ms
+
+/* ------------------------------ PUBLIC API ---------------------------- */
+
+void mpu_init(void) {
+    uint8_t check;
+    uint8_t data;
+
+    /* Old initialization kept intact */
+    HAL_I2C_Mem_Read(&hi2c1, MPU6050_ADDR, WHO_AM_I_REG, 1, &check, 1, 50);
+
+    data = 0;
+    HAL_I2C_Mem_Write(&hi2c1, MPU6050_ADDR, PWR_MGMT_1_REG, 1, &data, 1, 50);
+
+    data = 0x07;
+    HAL_I2C_Mem_Write(&hi2c1, MPU6050_ADDR, SMPLRT_DIV_REG, 1, &data, 1, 50);
+
+    data = 0x00;
+    HAL_I2C_Mem_Write(&hi2c1, MPU6050_ADDR, GYRO_CONFIG_REG, 1, &data, 1, 50);
+
+    data = 0x10;
+    HAL_I2C_Mem_Write(&hi2c1, MPU6050_ADDR, 0x1C, 1, &data, 1, 50);
+
+    /* initialize the filter timer so first dt is sane */
+    last_time = HAL_GetTick();
+}
+
+/*
+ * mpu_accel_read(int ret)
+ *
+ * Behavior preserved:
+ *  - ret == 0 -> return Roll (degrees)
+ *  - ret == 1 -> return -Pitch (degrees)    (keeps original sign convention)
+ *
+ * Internals changed:
+ *  - now uses complementary filter combining accel + gyro
+ *  - calls mpu_gyro_read() to refresh gyro rates (so no function signature change)
+ */
+float mpu_accel_read(int ret) {
+    uint8_t Rec_Data[6];
+
+    int16_t Accel_X_RAW, Accel_Y_RAW, Accel_Z_RAW;
+
+    float Ax, Ay, Az;
+
+    /* Read accel registers (same as before) */
+    HAL_I2C_Mem_Read(&hi2c1, MPU6050_ADDR, ACCEL_XOUT_H_REG, 1, Rec_Data, 6, 50);
+
+    Accel_X_RAW = (int16_t) (Rec_Data[0] << 8 | Rec_Data[1]);
+    Accel_Y_RAW = (int16_t) (Rec_Data[2] << 8 | Rec_Data[3]);
+    Accel_Z_RAW = (int16_t) (Rec_Data[4] << 8 | Rec_Data[5]);
+
+    /* Keep the same scale as your original code (±2g -> 16384 LSB/g) */
+    Ax = (float) Accel_X_RAW / 16384.0f;
+    Ay = (float) Accel_Y_RAW / 16384.0f;
+    Az = (float) Accel_Z_RAW / 16384.0f;
+
+    /* compute accel-only angles (degrees) — same formulas you had */
+    float acc_Roll = atan2f(Ay, sqrtf(Ax * Ax + Az * Az)) * 180.0f / 3.14159f;
+    float acc_Pitch = atan2f(-Ax, sqrtf(Ay * Ay + Az * Az)) * 180.0f / 3.14159f;
+
+    /* Refresh gyro readings so we can use them in the complementary filter.
+       This keeps function signatures unchanged: mpu_gyro_read() still fills Gx/Gy/Gz. */
+    mpu_gyro_read();
+
+    /* Now compute dt safely */
+    uint32_t now = HAL_GetTick();
+    float dt = (now - last_time) / 1000.0f;
+    if (dt <= 0.0f || dt > 0.5f) {
+        /* protect against timer wrap or huge dt on first call: clamp to a reasonable value */
+        dt = 0.01f; /* 10 ms default */
+    }
+    last_time = now;
+
+    /* Gyro globals must exist (they were used in original file). They are in deg/s. */
+    extern float Gx; /* declared elsewhere in project (same as original behavior) */
+    extern float Gy;
+
+    /* Complementary filter: integrate gyro and correct with accel angles.
+       alpha = 0.98 (gyro), 0.02 (accel). Tweak if you want more/less smoothing. */
+    filt_roll  = 0.98f * (filt_roll  + Gx * dt) + 0.02f * acc_Roll;
+    filt_pitch = 0.98f * (filt_pitch + Gy * dt) + 0.02f * acc_Pitch;
+
+    /* Return using the exact same sign convention your code had originally */
+    if (ret == 0) {
+        return filt_roll;
+    } else if (ret == 1) {
+        return -filt_pitch;
+    } else {
+        return 0.0f;
+    }
+}
+
+/* Original gyro read function: left signature and behavior intact.
+   It updates Gx, Gy, Gz (deg/s) as before. */
+void mpu_gyro_read(void) {
+    uint8_t Rec_Data[6];
+
+    int16_t Gyro_X_RAW, Gyro_Y_RAW, Gyro_Z_RAW;
+
+    HAL_I2C_Mem_Read(&hi2c1, MPU6050_ADDR, GYRO_XOUT_H_REG, 1, Rec_Data, 6, 50);
+
+    Gyro_X_RAW = (int16_t) (Rec_Data[0] << 8 | Rec_Data[1]);
+    Gyro_Y_RAW = (int16_t) (Rec_Data[2] << 8 | Rec_Data[3]);
+    Gyro_Z_RAW = (int16_t) (Rec_Data[4] << 8 | Rec_Data[5]);
+
+    /* Keep same scaling as you had previously */
+    Gx = (float) Gyro_X_RAW / 131.0f;
+    Gy = (float) Gyro_Y_RAW / 131.0f;
+    Gz = (float) Gyro_Z_RAW / 131.0f;
+}

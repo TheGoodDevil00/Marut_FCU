@@ -1,0 +1,10 @@
+19:21:40 **** Build of configuration Debug for project servo_example ****
+make -j16 all 
+arm-none-eabi-size  servo_example.elf 
+   text	   data	    bss	    dec	    hex	filename
+  15964	    104	   2048	  18116	   46c4	servo_example.elf
+Finished building: default.size.stdout
+ 
+
+19:21:40 Build Finished. 0 errors, 0 warnings. (took 256ms)
+

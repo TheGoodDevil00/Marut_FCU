@@ -1,0 +1,4 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<session version="1.0">
+<refactoring comment="Rename resource &apos;tecathon_new/Tecathon_2026.ioc&apos; to &apos;tecathon_new.ioc&apos;" description="Rename resource &apos;Tecathon_2026.ioc&apos;" flags="7" id="org.eclipse.ltk.core.refactoring.rename.resource" input="Tecathon_2026.ioc" name="tecathon_new.ioc" stamp="1769418344502" updateReferences="true"/>
+</session>

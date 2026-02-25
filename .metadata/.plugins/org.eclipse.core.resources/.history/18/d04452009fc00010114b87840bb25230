@@ -1,0 +1,76 @@
+#include "stm32f4xx_hal.h"
+#include <stdint.h>
+#include <stdio.h>
+#include <math.h>
+#include "mpu6050_port.h"
+
+extern I2C_HandleTypeDef hi2c1;
+
+// ---------------- GLOBAL FILTER VARIABLES ----------------
+float filt_roll = 0.0f, filt_pitch = 0.0f;
+uint32_t last_time = 0;
+
+float Gx, Gy, Gz;  // deg/s
+// ----------------------------------------------------------
+
+void mpu_init(void)
+{
+	uint8_t data;
+
+	data = 0;
+	HAL_I2C_Mem_Write(&hi2c1, MPU6050_ADDR, PWR_MGMT_1_REG, 1, &data, 1, 50);
+
+	data = 0x07; // sample rate
+	HAL_I2C_Mem_Write(&hi2c1, MPU6050_ADDR, SMPLRT_DIV_REG, 1, &data, 1, 50);
+
+	data = 0x00; // gyro full-scale
+	HAL_I2C_Mem_Write(&hi2c1, MPU6050_ADDR, GYRO_CONFIG_REG, 1, &data, 1, 50);
+
+	data = 0x10; // accel ±8g (more stable)
+	HAL_I2C_Mem_Write(&hi2c1, MPU6050_ADDR, 0x1C, 1, &data, 1, 50);
+
+	last_time = HAL_GetTick();
+}
+
+// ---------------- ACC + GYRO READ + FILTER ----------------
+void mpu_read_all(float *roll_deg, float *pitch_deg)
+{
+	uint8_t Rec_Data[6];
+
+	// ---- READ ACC ----
+	HAL_I2C_Mem_Read(&hi2c1, MPU6050_ADDR, ACCEL_XOUT_H_REG, 1, Rec_Data, 6, 50);
+
+	int16_t ax_raw = (int16_t)(Rec_Data[0] << 8 | Rec_Data[1]);
+	int16_t ay_raw = (int16_t)(Rec_Data[2] << 8 | Rec_Data[3]);
+	int16_t az_raw = (int16_t)(Rec_Data[4] << 8 | Rec_Data[5]);
+
+	float Ax = ax_raw / 4096.0f;   // because ±8g
+	float Ay = ay_raw / 4096.0f;
+	float Az = az_raw / 4096.0f;
+
+	// ---- RAW ACC ANGLES ----
+	float acc_roll  = atan2f(Ay, sqrtf(Ax*Ax + Az*Az)) * 57.2958f;
+	float acc_pitch = atan2f(-Ax, sqrtf(Ay*Ay + Az*Az)) * 57.2958f;
+
+	// ---- READ GYRO ----
+	HAL_I2C_Mem_Read(&hi2c1, MPU6050_ADDR, GYRO_XOUT_H_REG, 1, Rec_Data, 6, 50);
+
+	int16_t gx_raw = (int16_t)(Rec_Data[0] << 8 | Rec_Data[1]);
+	int16_t gy_raw = (int16_t)(Rec_Data[2] << 8 | Rec_Data[3]);
+	int16_t gz_raw = (int16_t)(Rec_Data[4] << 8 | Rec_Data[5]);
+
+	Gx = gx_raw / 131.0f;
+	Gy = gy_raw / 131.0f;
+	Gz = gz_raw / 131.0f;
+
+	// ---- COMPLEMENTARY FILTER ----
+	uint32_t now = HAL_GetTick();
+	float dt = (now - last_time) / 1000.0f;
+	last_time = now;
+
+	filt_roll  = 0.98f * (filt_roll  + Gx * dt) + 0.02f * acc_roll;
+	filt_pitch = 0.98f * (filt_pitch + Gy * dt) + 0.02f * acc_pitch;
+
+	*roll_deg = filt_roll;
+	*pitch_deg = filt_pitch;
+}

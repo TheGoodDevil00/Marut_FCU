@@ -1,0 +1,122 @@
+#include "mpu6050_port.h"
+#include <math.h>
+#include <stdio.h>
+
+I2C_HandleTypeDef extern hi2c1; /* provided by your project (keeps compile check) */
+
+float Gx = 0.0f, Gy = 0.0f, Gz = 0.0f;
+
+static float fused_roll = 0.0f;
+static float fused_pitch = 0.0f;
+static uint32_t last_time = 0;
+
+void mpu_init(void)
+{
+    uint8_t check;
+    uint8_t data;
+
+    /* verify device */
+    HAL_I2C_Mem_Read(&hi2c1, (MPU6050_ADDR << 1), WHO_AM_I_REG, 1, &check, 1, 50);
+
+    /* wakeup */
+    data = 0x00;
+    HAL_I2C_Mem_Write(&hi2c1, (MPU6050_ADDR << 1), PWR_MGMT_1_REG, 1, &data, 1, 50);
+
+    /* sample rate divider */
+    data = 0x07;
+    HAL_I2C_Mem_Write(&hi2c1, (MPU6050_ADDR << 1), SMPLRT_DIV_REG, 1, &data, 1, 50);
+
+    /* gyro full scale = ±250 dps */
+    data = 0x00;
+    HAL_I2C_Mem_Write(&hi2c1, (MPU6050_ADDR << 1), GYRO_CONFIG_REG, 1, &data, 1, 50);
+
+    /* accel full scale = ±8g (0x10 sets ±8g) — optional, keep if you used earlier */
+    data = 0x10;
+    HAL_I2C_Mem_Write(&hi2c1, (MPU6050_ADDR << 1), ACCEL_CONFIG_REG, 1, &data, 1, 50);
+
+    /* initialize timer baseline */
+    last_time = HAL_GetTick();
+}
+
+/* Return accel-only angles (useful for initialisation only) */
+float mpu_accel_roll(void)
+{
+    uint8_t buf[6];
+    int16_t ax, ay, az;
+    HAL_I2C_Mem_Read(&hi2c1, (MPU6050_ADDR << 1), ACCEL_XOUT_H_REG, 1, buf, 6, 50);
+    ax = (int16_t)(buf[0] << 8 | buf[1]);
+    ay = (int16_t)(buf[2] << 8 | buf[3]);
+    az = (int16_t)(buf[4] << 8 | buf[5]);
+    float Ax = ax / 16384.0f;
+    float Ay = ay / 16384.0f;
+    float Az = az / 16384.0f;
+    return atan2f(Ay, sqrtf(Ax*Ax + Az*Az)) * (180.0f / M_PI);
+}
+
+float mpu_accel_pitch(void)
+{
+    uint8_t buf[6];
+    int16_t ax, ay, az;
+    HAL_I2C_Mem_Read(&hi2c1, (MPU6050_ADDR << 1), ACCEL_XOUT_H_REG, 1, buf, 6, 50);
+    ax = (int16_t)(buf[0] << 8 | buf[1]);
+    ay = (int16_t)(buf[2] << 8 | buf[3]);
+    az = (int16_t)(buf[4] << 8 | buf[5]);
+    float Ax = ax / 16384.0f;
+    float Ay = ay / 16384.0f;
+    float Az = az / 16384.0f;
+    return atan2f(-Ax, sqrtf(Ay*Ay + Az*Az)) * (180.0f / M_PI);
+}
+
+/* call regularly (every loop or timer) so dt is stable */
+void mpu_update_angles(void)
+{
+    static uint8_t first = 1;
+    uint32_t now = HAL_GetTick();
+    float dt = (now - last_time) / 1000.0f;
+    if (dt <= 0.0f || dt > 0.5f) dt = 0.01f; /* guard against weird dt on first call */
+    last_time = now;
+
+    uint8_t buf[6];
+    int16_t ax, ay, az, gx_raw, gy_raw, gz_raw;
+
+    /* --- ACCEL --- */
+    HAL_I2C_Mem_Read(&hi2c1, (MPU6050_ADDR << 1), ACCEL_XOUT_H_REG, 1, buf, 6, 50);
+    ax = (int16_t)(buf[0] << 8 | buf[1]);
+    ay = (int16_t)(buf[2] << 8 | buf[3]);
+    az = (int16_t)(buf[4] << 8 | buf[5]);
+    float Ax = ax / 16384.0f;
+    float Ay = ay / 16384.0f;
+    float Az = az / 16384.0f;
+
+    float accel_roll  = atan2f(Ay,  sqrtf(Ax*Ax + Az*Az)) * (180.0f / M_PI);
+    float accel_pitch = atan2f(-Ax, sqrtf(Ay*Ay + Az*Az)) * (180.0f / M_PI);
+
+    /* --- GYRO --- */
+    HAL_I2C_Mem_Read(&hi2c1, (MPU6050_ADDR << 1), GYRO_XOUT_H_REG, 1, buf, 6, 50);
+    gx_raw = (int16_t)(buf[0] << 8 | buf[1]);
+    gy_raw = (int16_t)(buf[2] << 8 | buf[3]);
+    gz_raw = (int16_t)(buf[4] << 8 | buf[5]);
+
+    /* convert to deg/sec (assuming FS = ±250 dps) */
+    float gx = gx_raw / 131.0f;
+    float gy = gy_raw / 131.0f;
+    float gz = gz_raw / 131.0f;
+
+    /* store raw gyro globals (optional) */
+    Gx = gx; Gy = gy; Gz = gz;
+
+    if (first)
+    {
+        fused_roll  = accel_roll;
+        fused_pitch = accel_pitch;
+        first = 0;
+    }
+
+    /* complementary filter: keeps gyro short-term, accel long-term */
+    const float alpha = 0.98f;
+    fused_roll  = alpha * (fused_roll  + gx * dt) + (1.0f - alpha) * accel_roll;
+    fused_pitch = alpha * (fused_pitch + gy * dt) + (1.0f - alpha) * accel_pitch;
+}
+
+float get_roll(void)  { return fused_roll; }
+float get_pitch(void) { return fused_pitch; }

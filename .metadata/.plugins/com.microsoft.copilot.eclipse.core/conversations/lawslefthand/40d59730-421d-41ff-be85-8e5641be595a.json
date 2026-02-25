@@ -1,0 +1,50 @@
+{
+  "conversationId": "40d59730-421d-41ff-be85-8e5641be595a",
+  "title": "Printing Kalman Filter Angles",
+  "requesterUsername": "lawslefthand",
+  "responderUsername": "GitHub Copilot",
+  "turns": [
+    {
+      "message": {
+        "text": "give me a basic printf for kalman angles"
+      },
+      "currentDocument": {
+        "uri": "/FCU_Quad_RateMode/Core/Src/main.c"
+      },
+      "references": [],
+      "ignoredSkills": [],
+      "userLanguage": "en",
+      "source": "panel",
+      "model": "GPT-4o",
+      "chatMode": "Ask",
+      "needToolCallConfirmation": true,
+      "turnId": "a232eaea-fcaa-478c-b2d0-f744baa7d781",
+      "role": "user",
+      "timestamp": "2026-02-08T07:05:31.703879600Z"
+    },
+    {
+      "reply": {
+        "text": "To print the Kalman angles, you can use a `printf` statement to display the values. Assuming you have variables like `kalman_angle_roll` and `kalman_angle_pitch` representing the Kalman filter angles, here\u0027s an example:\n\n```c\nprintf(\"Kalman Angles: Roll \u003d %.2f, Pitch \u003d %.2f\\n\", kalman_angle_roll, kalman_angle_pitch);\n```\n\nThis will format the angles to two decimal places. Replace `kalman_angle_roll` and `kalman_angle_pitch` with the actual variable names in your code.",
+        "annotations": [],
+        "references": [],
+        "hideText": false,
+        "notifications": [],
+        "followups": [],
+        "errorMessages": [],
+        "editAgentRounds": [],
+        "panelMessages": [],
+        "steps": [],
+        "agentMessages": [],
+        "data": {},
+        "modelName": "GPT-4o",
+        "billingMultiplier": 1.0
+      },
+      "suggestedTitle": "Printing Kalman Filter Angles",
+      "turnId": "eb693443-8acd-4d06-af67-2c23885062d7",
+      "role": "copilot",
+      "timestamp": "2026-02-08T07:05:32.780407400Z"
+    }
+  ],
+  "creationDate": "2026-02-08T07:05:31.692556700Z",
+  "lastMessageDate": "2026-02-08T07:05:37.050551500Z"
+}

@@ -1,0 +1,52 @@
+float qmc_mag_read(void)
+{
+    uint8_t Rec_Data[6];
+    float mag_x, mag_y, mag_z;
+    float roll_rad, pitch_rad;
+    float Xh, Yh;
+    float heading_deg, heading_rad;
+
+    // ---------------- RAW MAG READ ------------------
+    Rec_Data[0] = qmc_i2c_read(0x02);
+    Rec_Data[1] = qmc_i2c_read(0x01);
+    Rec_Data[2] = qmc_i2c_read(0x04);
+    Rec_Data[3] = qmc_i2c_read(0x03);
+    Rec_Data[4] = qmc_i2c_read(0x06);
+    Rec_Data[5] = qmc_i2c_read(0x05);
+
+    mag_x = (int16_t)(Rec_Data[0] << 8 | Rec_Data[1]);
+    mag_y = (int16_t)(Rec_Data[2] << 8 | Rec_Data[3]);
+    mag_z = (int16_t)(Rec_Data[4] << 8 | Rec_Data[5]);
+
+    // ---------------- GET ROLL / PITCH FROM MPU ----------------
+    pitch_rad = mpu_accel_read(1) * (3.14159f / 180.0f);  // degrees → radians
+    roll_rad  = mpu_accel_read(0) * (3.14159f / 180.0f);
+
+    // ---------------- TILT COMPENSATION ------------------------
+    Xh = mag_x * cosf(pitch_rad) + mag_z * sinf(pitch_rad);
+    Yh = mag_x * sinf(roll_rad) * sinf(pitch_rad)
+       + mag_y * cosf(roll_rad)
+       - mag_z * sinf(roll_rad) * cosf(pitch_rad);
+
+    heading_deg = atan2f(Yh, Xh) * (180.0f / 3.14159f);
+
+    if (heading_deg < 0)
+        heading_deg += 360.0f;
+
+    // ---------------- AUTO-ZERO --------------------------
+    if (!offset_calibrated) {
+        heading_offset = heading_deg;
+        offset_calibrated = 1;
+        printf("Compass auto-zeroed. Offset = %.2f°\r\n", heading_offset);
+    }
+
+    // Apply offset
+    heading_deg -= heading_offset;
+    if (heading_deg < 0) heading_deg += 360.0f;
+    if (heading_deg >= 360) heading_deg -= 360.0f;
+
+    // ---------------- DEGREES → RADIANS -------------------
+    heading_rad = heading_deg * (3.14159f / 180.0f);
+
+    return heading_rad;
+}

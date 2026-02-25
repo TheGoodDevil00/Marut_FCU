@@ -1,0 +1,73 @@
+#include <math.h>
+#include <stdio.h>
+#include "stm32f4xx_hal.h"
+#include "qmcr5883l.h"
+#include "mpu6050_port.h"
+
+extern I2C_HandleTypeDef hi2c1;
+
+/* Basic I2C helpers */
+void qmc_i2c_write(uint8_t reg_addr, uint8_t value)
+{
+    HAL_I2C_Mem_Write(&hi2c1, (QMC_ADDR << 1), reg_addr, I2C_MEMADD_SIZE_8BIT, &value, 1, 50);
+}
+
+uint8_t qmc_i2c_read(uint8_t reg_addr)
+{
+    uint8_t value = 0;
+    HAL_I2C_Mem_Read(&hi2c1, (QMC_ADDR << 1), reg_addr, I2C_MEMADD_SIZE_8BIT, &value, 1, 50);
+    return value;
+}
+
+float qmc_mag_read(void)
+{
+    uint8_t d[6];
+    int16_t raw_x, raw_y, raw_z;
+    float mag_x, mag_y, mag_z;
+    float angle_deg;
+
+    /*d[0] = qmc_i2c_read(0x02);
+    d[1] = qmc_i2c_read(0x01);
+    d[2] = qmc_i2c_read(0x04);
+    d[3] = qmc_i2c_read(0x03);
+    d[4] = qmc_i2c_read(0x06);
+    d[5] = qmc_i2c_read(0x05);*/
+    HAL_I2C_Mem_Read(&hi2c1, (QMC_ADDR << 1), 0x01, I2C_MEMADD_SIZE_8BIT, d, 6, 50);
+
+    raw_x = (int16_t)(d[0] << 8 | d[1]);
+    raw_y = (int16_t)(d[2] << 8 | d[3]);
+    raw_z = (int16_t)(d[4] << 8 | d[5]);
+
+    mag_x = (float)raw_x;
+    mag_y = (float)raw_y;
+    mag_z = (float)raw_z;
+
+    /* update fused tilt angles (call frequently from main loop or a timer) */
+    //mpu_update_angles();
+
+    float pitch = get_pitch() * (M_PI / 180.0f);
+    float roll  = get_roll()  * (M_PI / 180.0f);
+
+    /* tilt compensation (project field onto horizontal plane) */
+    float Xh = mag_x * cosf(pitch) + mag_z * sinf(pitch);
+    float Yh = mag_x * sinf(roll) * sinf(pitch) + mag_y * cosf(roll) - mag_z * sinf(roll) * cosf(pitch);
+
+    /* correct atan2 orientation for this module */
+    angle_deg = atan2f(-Yh, Xh) * (180.0f / M_PI);
+
+    /* normalize to 0..360 */
+    if (angle_deg < 0.0f) angle_deg += 360.0f;
+    if (angle_deg >= 360.0f) angle_deg -= 360.0f;
+
+    printf("Heading deg: %.2f\n", angle_deg);
+
+    return angle_deg * (M_PI / 180.0f); /* return radians */
+}
+
+void qmc_init(void)
+{
+    /* control registers: set to continuous mode, 200 Hz, etc. */
+    qmc_i2c_write(0x0B, 0x08);  /* Control 2 */
+    qmc_i2c_write(0x0A, 0xCD);  /* Continuous, 200Hz, full scale */
+    printf("QMC5883L initialized.\r\n");
+}

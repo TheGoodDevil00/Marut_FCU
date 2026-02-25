@@ -1,0 +1,102 @@
+/*
+ * qmc5883l.c
+ *
+ *  Created on: Oct 22, 2025
+ *      Author: danba
+ */
+
+#include <math.h>
+#include <stdio.h>
+#include "stm32f4xx_hal.h"
+#include "qmcr5883l.h"
+#include "mpu6050_port.h"
+
+extern I2C_HandleTypeDef hi2c1;
+
+/* Auto-zero variables */
+int offset_calibrated = 0;
+float heading_offset = 0.0f;
+
+/* ---------------------- I2C Helpers ------------------------- */
+
+void qmc_i2c_write(uint8_t reg_addr, uint8_t value)
+{
+    HAL_I2C_Mem_Write(&hi2c1, (QMC_ADDR << 1), reg_addr,
+                      I2C_MEMADD_SIZE_8BIT, &value, 1, 50);
+}
+
+uint8_t qmc_i2c_read(uint8_t reg_addr)
+{
+    uint8_t value = 0;
+    HAL_I2C_Mem_Read(&hi2c1, (QMC_ADDR << 1), reg_addr,
+                     I2C_MEMADD_SIZE_8BIT, &value, 1, 50);
+    return value;
+}
+
+/* ---------------------- MAG READ + TILT COMPENSATION ------------------------- */
+
+float qmc_mag_read(void)
+{
+    uint8_t Rec_Data[6];
+    float mag_x, mag_y, mag_z;
+    float roll_rad, pitch_rad;
+    float Xh, Yh;
+    float heading_deg, heading_rad;
+
+    /* ---------------- Read raw magnetometer ---------------- */
+    Rec_Data[0] = qmc_i2c_read(0x02);
+    Rec_Data[1] = qmc_i2c_read(0x01);
+    Rec_Data[2] = qmc_i2c_read(0x04);
+    Rec_Data[3] = qmc_i2c_read(0x03);
+    Rec_Data[4] = qmc_i2c_read(0x06);
+    Rec_Data[5] = qmc_i2c_read(0x05);
+
+    mag_x = (int16_t)(Rec_Data[0] << 8 | Rec_Data[1]);
+    mag_y = (int16_t)(Rec_Data[2] << 8 | Rec_Data[3]);
+    mag_z = (int16_t)(Rec_Data[4] << 8 | Rec_Data[5]);
+
+    /* ---------------- Get pitch and roll from MPU6050 ---------------- */
+    pitch_rad = mpu_accel_read(1) * (3.14159f / 180.0f);  // degrees → radians
+    roll_rad  = mpu_accel_read(0) * (3.14159f / 180.0f);
+
+    /* ---------------- Tilt compensation ---------------- */
+    Xh = mag_x * cosf(pitch_rad) + mag_z * sinf(pitch_rad);
+
+    Yh = mag_x * sinf(roll_rad) * sinf(pitch_rad)
+       + mag_y * cosf(roll_rad)
+       - mag_z * sinf(roll_rad) * cosf(pitch_rad);
+
+    heading_deg = atan2f(Yh, Xh) * 180.0f / 3.14159f;
+
+    if (heading_deg < 0)
+        heading_deg += 360.0f;
+
+    /* ---------------- First run → auto-zero ---------------- */
+    if (!offset_calibrated)
+    {
+        heading_offset = heading_deg;
+        offset_calibrated = 1;
+        printf("Compass auto-zeroed. Offset = %.2f°\r\n", heading_offset);
+    }
+
+    /* ---------------- Apply zero offset ---------------- */
+    heading_deg -= heading_offset;
+
+    if (heading_deg < 0) heading_deg += 360.0f;
+    if (heading_deg >= 360.0f) heading_deg -= 360.0f;
+
+    /* ---------------- Convert to radians for MAVLink ---------------- */
+    heading_rad = heading_deg * (3.14159f / 180.0f);
+
+    return heading_rad; // final value in radians
+}
+
+/* ---------------------- Initialization ---------------------- */
+
+void qmc_init(void)
+{
+    qmc_i2c_write(0x0B, 0x08);  // Control 2: soft reset
+    qmc_i2c_write(0x0A, 0xCD);  // 200Hz, full scale (2G), continuous mode
+
+    printf("QMC5883L initialized.\r\n");
+}

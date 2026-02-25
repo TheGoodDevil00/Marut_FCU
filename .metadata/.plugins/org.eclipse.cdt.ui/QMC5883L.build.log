@@ -1,0 +1,10 @@
+17:27:50 **** Build of configuration Debug for project QMC5883L ****
+make -j16 all 
+arm-none-eabi-size  QMC5883L.elf 
+   text	   data	    bss	    dec	    hex	filename
+  31664	    468	   1988	  34120	   8548	QMC5883L.elf
+Finished building: default.size.stdout
+ 
+
+17:27:50 Build Finished. 0 errors, 0 warnings. (took 350ms)
+

@@ -1,0 +1,59 @@
+/*
+ * pm_GP2Y1010AU0F.c
+ *
+ *  Created on: Jan 28, 2026
+ *      Author: danba
+ */
+
+#include "main.h"
+#include "cmsis_os.h"
+#include <stdio.h>
+
+extern ADC_HandleTypeDef hadc1;
+
+
+void gp2y_led_on_off(int state) {
+	HAL_GPIO_WritePin(GPIOA, GPIO_PIN_1, state);
+}
+
+float gp2y_measure(void) {
+
+	float pm_reading = 0;
+	float clean_voltage = 0; // saaf hawa meh measure kiya hua value idhar dalna baadme, note to pushkar/ayush
+	float raw_val = 0;
+	float vout = 0;
+	//led settling time 300 micro seconds haiu
+	gp2y_led_on_off(1);
+	micro_second_delay(290);
+	printf("Test 3\n");
+
+
+	//10 ka sampling time dalra
+	raw_val=0;
+	HAL_ADC_Start(&hadc1);
+	printf("Test 4\n");
+    HAL_ADC_PollForConversion(&hadc1, 10);
+	printf("Test 5\n");
+	raw_val = HAL_ADC_GetValue(&hadc1);
+	HAL_ADC_Stop(&hadc1);
+	printf("Test 6\n");
+
+	//led off for new sample
+	gp2y_led_on_off(0);
+
+	//atleast a 10ms wait until the new cycle so meh os delay dalra as thoda aage piche chalta hai
+
+	//value processing
+	vout = (raw_val / 4095.0) * 3.3;
+	pm_reading = vout - clean_voltage;
+
+	osDelay(10);
+	printf("Test 7\n");
+
+
+	return pm_reading;
+
+}
+
+
+
