@@ -8,7 +8,7 @@
 #include "bmp280.h"
 #include "math.h"
 
-extern I2C_HandleTypeDef hi2c1;
+extern I2C_HandleTypeDef hi2c3;
 
 
 static uint8_t calib_loaded = 0;
@@ -21,14 +21,14 @@ static int16_t  dig_P2, dig_P3, dig_P4, dig_P5, dig_P6, dig_P7, dig_P8, dig_P9;
 
 
 void bmp_hal_i2c_write(uint8_t reg_addr, uint8_t value) {
-	HAL_I2C_Mem_Write(&hi2c1, BMP280_I2C_ADDR,
+	HAL_I2C_Mem_Write(&hi2c3, BMP280_I2C_ADDR,
 	                  reg_addr, I2C_MEMADD_SIZE_8BIT,
 	                  &value, 1, 50);
 }
 
 uint8_t bmp_hal_i2c_read(uint8_t reg_addr) {
 	uint8_t read_value = 0;
-	HAL_I2C_Mem_Read(&hi2c1, BMP280_I2C_ADDR,
+	HAL_I2C_Mem_Read(&hi2c3, BMP280_I2C_ADDR,
 	                 reg_addr, I2C_MEMADD_SIZE_8BIT,
 	                 &read_value, 1, 50);
 	return read_value;
@@ -38,7 +38,7 @@ static void bmp_load_calib(void) {
 	if (calib_loaded) return;
 
 	uint8_t buf[24];
-	HAL_I2C_Mem_Read(&hi2c1, BMP280_I2C_ADDR,
+	HAL_I2C_Mem_Read(&hi2c3, BMP280_I2C_ADDR,
 	                 0x88, I2C_MEMADD_SIZE_8BIT,
 	                 buf, 24, 50);
 
@@ -68,7 +68,7 @@ double temperature(int x) {
 	uint32_t t_fine;
 	double final_temp;
 
-	HAL_I2C_Mem_Read(&hi2c1, BMP280_I2C_ADDR,
+	HAL_I2C_Mem_Read(&hi2c3, BMP280_I2C_ADDR,
 	                 0xFA, I2C_MEMADD_SIZE_8BIT,
 	                 tbuf, 3, 1);
 
@@ -98,7 +98,7 @@ double pressure(void) {
 
 	t_fine = (uint32_t)temperature(1);
 
-	HAL_I2C_Mem_Read(&hi2c1, BMP280_I2C_ADDR,
+	HAL_I2C_Mem_Read(&hi2c3, BMP280_I2C_ADDR,
 	                 0xF7, I2C_MEMADD_SIZE_8BIT,
 	                 pbuf, 3, 1);
 

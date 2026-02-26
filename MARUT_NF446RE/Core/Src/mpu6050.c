@@ -23,39 +23,35 @@ float Pitch = 0.0f;
 
 extern I2C_HandleTypeDef hi2c1;
 
-
 // R_measure controls accel trust: low = trust accel, high = trust gyro. - pushkar
 // Increase R_measure as RPM/throttle increases to prevent thrust-induced tilt.
 // Typical range: 0.3 (motors off) → 1.0–2.0 (in flight), never below 0.1 or above ~5.
 
-
 // angle = how much we trust the reading of gyro if too low we trust its reading if high we dont - pushkar
 // bias is how much we do not trust gyro , low = bias changes slowly , high bias changes continuously
 
-Kalman_t KalmanX={
-	.Q_angle = 0.001f,
-	.Q_bias = 0.003f,
-	.R_measure = 1.25f,
-};
+Kalman_t KalmanX = { .Q_angle = 0.001f, .Q_bias = 0.003f, .R_measure = 1.25f, };
 
-Kalman_t KalmanY={
-		.Q_angle = 0.001f,
-		.Q_bias = 0.003f,
-		.R_measure = 0.80f,
-};
+Kalman_t KalmanY = { .Q_angle = 0.001f, .Q_bias = 0.003f, .R_measure = 0.80f, };
 
-void Kalman_Init(Kalman_t *K)
-{
-    K->angle = 0.0f;
-    K->bias  = 0.0f;
+void Kalman_Init(Kalman_t *K) {
+	K->angle = 0.0f;
+	K->bias = 0.0f;
 
-    K->P[0][0] = 1.0f;
-    K->P[0][1] = 0.0f;
-    K->P[1][0] = 0.0f;
-    K->P[1][1] = 1.0f;
+	K->P[0][0] = 1.0f;
+	K->P[0][1] = 0.0f;
+	K->P[1][0] = 0.0f;
+	K->P[1][1] = 1.0f;
 }
 
 void mpu_init(void) {
+
+	uint8_t who = 0;
+	HAL_I2C_Mem_Read(&hi2c1,
+	MPU6050_ADDR,
+	WHO_AM_I_REG, 1, &who, 1, 100);
+
+	printf("WHO_AM_I = 0x%02X\n", who);
 
 	uint8_t data;
 	data = 0x00;
@@ -65,7 +61,7 @@ void mpu_init(void) {
 	data = 0x00;
 	HAL_I2C_Mem_Write(&hi2c1, MPU6050_ADDR, ACCEL_CONFIG_REG, 1, &data, 1, 50);
 	/* data = 0x05;
-	HAL_I2C_Mem_Write(&hi2c1, MPU6050_ADDR, CONFIG_REG, 1, &data, 1, 50); */
+	 HAL_I2C_Mem_Write(&hi2c1, MPU6050_ADDR, CONFIG_REG, 1, &data, 1, 50); */
 	data = 0x05;
 	HAL_I2C_Mem_Write(&hi2c1, MPU6050_ADDR, CONFIG_REG, 1, &data, 1, 100);
 
@@ -75,7 +71,6 @@ void mpu_init(void) {
 	Kalman_Init(&KalmanX);
 	Kalman_Init(&KalmanY);
 }
-
 
 float mpu_accel_read(int ret) {
 	uint8_t Rec_Data[6];
@@ -111,13 +106,12 @@ float mpu_roll_pitch_read_accel(int ret) {
 	Ax = ax / 16384.0f;
 	Ay = ay / 16384.0f;
 	Az = az / 16384.0f;
-	 Roll = atan2f(Ay, sqrtf(Ax * Ax + Az * Az)) * 180.0f / M_PI;
-	 Pitch = atan2f(-Ax, sqrtf(Ay * Ay + Az * Az)) * 180.0f / M_PI;
+	Roll = atan2f(Ay, sqrtf(Ax * Ax + Az * Az)) * 180.0f / M_PI;
+	Pitch = atan2f(-Ax, sqrtf(Ay * Ay + Az * Az)) * 180.0f / M_PI;
 
-	 // LOW PASS FILTER FOR ACCEL = 90% trust on old value 10% on new value
-	 //Roll = 0.9 * Roll + 0.1*Rollraw;
-	 //Pitch =  0.9 * Pitch + 0.1*Pitchraw; ;
-
+	// LOW PASS FILTER FOR ACCEL = 90% trust on old value 10% on new value
+	//Roll = 0.9 * Roll + 0.1*Rollraw;
+	//Pitch =  0.9 * Pitch + 0.1*Pitchraw; ;
 
 	if (ret == 0)
 		return Roll;
@@ -241,62 +235,63 @@ float mpu_roll_pitch_read_gyro(int ret, float dt) {
 		return 0.0f;
 }
 // 1 D Kalman Filter with Bias Calculation pushkar
-double Kalman_get_angle(Kalman_t *Kalman,double newAngle, double newRate , double dt){
+double Kalman_get_angle(Kalman_t *Kalman, double newAngle, double newRate,
+		double dt) {
 	//Prediction Stage
-	double rate = newRate - Kalman -> bias;
-	Kalman -> angle += dt * rate;
+	double rate = newRate - Kalman->bias;
+	Kalman->angle += dt * rate;
 	// Covariance prediction - pushkar
-		Kalman -> P[0][0] += dt * (dt * Kalman -> P[1][1] - Kalman -> P[0][1]-Kalman->P[1][0] + Kalman -> Q_angle );
-		Kalman -> P[0][1] -= dt * Kalman -> P[1][1];
-		Kalman -> P[1][0] -= dt * Kalman -> P[1][1];
-		Kalman -> P[1][1] += Kalman -> Q_bias * dt;
+	Kalman->P[0][0] += dt
+			* (dt * Kalman->P[1][1] - Kalman->P[0][1] - Kalman->P[1][0]
+					+ Kalman->Q_angle);
+	Kalman->P[0][1] -= dt * Kalman->P[1][1];
+	Kalman->P[1][0] -= dt * Kalman->P[1][1];
+	Kalman->P[1][1] += Kalman->Q_bias * dt;
 
 	// Innovation
-		double y = newAngle - Kalman-> angle ;  // Angle diff pushkar
+	double y = newAngle - Kalman->angle;  // Angle diff pushkar
 
 	// Innovation Covariance
-		double S = Kalman -> P[0][0] + Kalman-> R_measure ; // Estimate error pushkar
+	double S = Kalman->P[0][0] + Kalman->R_measure; // Estimate error pushkar
 
 	// Kalman Gain
-		double K[2]; // Kalman gain - A 2x1 matrix pushkar
-		K[0] = Kalman->P[0][0] / S;
-		K[1] = Kalman->P[1][0] / S;
+	double K[2]; // Kalman gain - A 2x1 matrix pushkar
+	K[0] = Kalman->P[0][0] / S;
+	K[1] = Kalman->P[1][0] / S;
 
 	// Update Angle pushkar
-		Kalman -> angle += K[0] *y;
-		Kalman -> bias += K[1] *y;
+	Kalman->angle += K[0] * y;
+	Kalman->bias += K[1] * y;
 	//Update Covarience pushkar
-		double tempA = Kalman-> P[0][0];
-		double tempB = Kalman-> P[0][1];
+	double tempA = Kalman->P[0][0];
+	double tempB = Kalman->P[0][1];
 
-		Kalman->P[0][0] -= K[0] * tempA;
-		Kalman->P[0][1] -= K[0] * tempB;
-		Kalman->P[1][0] -= K[1] * tempA;
-		Kalman->P[1][1] -= K[1] * tempB;
+	Kalman->P[0][0] -= K[0] * tempA;
+	Kalman->P[0][1] -= K[0] * tempB;
+	Kalman->P[1][0] -= K[1] * tempA;
+	Kalman->P[1][1] -= K[1] * tempB;
 
-
-
-		return Kalman->angle;
+	return Kalman->angle;
 };
 
-void mpu_get_kalman_angles(float *roll, float *pitch)
-{
-    static uint32_t lastTick = 0;
-    uint32_t now = HAL_GetTick();
-    float dt = (now - lastTick) / 1000.0f;
-    lastTick = now;
+void mpu_get_kalman_angles(float *roll, float *pitch) {
+	static uint32_t lastTick = 0;
+	uint32_t now = HAL_GetTick();
+	float dt = (now - lastTick) / 1000.0f;
+	lastTick = now;
 
-    /* Accel angles (degrees) */
-    float accRoll  = mpu_roll_pitch_read_accel(0) - calibration_const_global_roll_accel;
-    float accPitch = mpu_roll_pitch_read_accel(1) - calibration_const_global_pitch_accel;
+	/* Accel angles (degrees) */
+	float accRoll = mpu_roll_pitch_read_accel(0)
+			- calibration_const_global_roll_accel;
+	float accPitch = mpu_roll_pitch_read_accel(1)
+			- calibration_const_global_pitch_accel;
 
-    /* Gyro rates (deg/sec) */
-    float gyroRollRate  = mpu_gyro_read(0) - calibration_const_global_gx;
-    float gyroPitchRate = mpu_gyro_read(1) - calibration_const_global_gy;
+	/* Gyro rates (deg/sec) */
+	float gyroRollRate = mpu_gyro_read(0) - calibration_const_global_gx;
+	float gyroPitchRate = mpu_gyro_read(1) - calibration_const_global_gy;
 
-    /* Kalman filter */
-    *roll  = Kalman_get_angle(&KalmanX, accRoll,  gyroRollRate,  dt);
-    *pitch = Kalman_get_angle(&KalmanY, accPitch, gyroPitchRate, dt);
+	/* Kalman filter */
+	*roll = Kalman_get_angle(&KalmanX, accRoll, gyroRollRate, dt);
+	*pitch = Kalman_get_angle(&KalmanY, accPitch, gyroPitchRate, dt);
 }
-
 

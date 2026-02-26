@@ -13,16 +13,11 @@
 #include "mpu6050.h"
 #include "cmsis_os.h"
 
-extern float mag_ext;
-extern float alt_ext;
 extern float kalman_roll;
 extern float kalman_pitch;
 
 
 extern UART_HandleTypeDef huart2;
-
-float extern kalman_roll;
-float extern kalman_pitch;
 
 extern uint8_t rxBuffer[128];
 extern uint8_t rxIndex;
@@ -48,7 +43,8 @@ extern char unit;
 extern uint32_t gps_send_counter;
 
 extern float relative_alt_meters;
-extern float qmc_mag_ext;
+extern float alt_ext;
+
 
 void send_heartbeat_armed(void) {
 	mavlink_message_t msg;
@@ -59,7 +55,7 @@ void send_heartbeat_armed(void) {
 
 	uint16_t len = mavlink_msg_to_send_buffer(buf, &msg);
 
-	HAL_UART_Transmit(&huart2, buf, len, HAL_MAX_DELAY);
+	HAL_UART_Transmit(&huart2, buf, len, osWaitForever);
 }
 
 void send_heartbeat_disarmed(void) {
@@ -67,11 +63,12 @@ void send_heartbeat_disarmed(void) {
 	uint8_t buf[MAVLINK_MAX_PACKET_LEN];
 
 	mavlink_msg_heartbeat_pack(1, 200, &msg, MAV_TYPE_FIXED_WING,
-			MAV_AUTOPILOT_GENERIC, MAV_MODE_MANUAL_DISARMED, 0, MAV_STATE_ACTIVE);
+			MAV_AUTOPILOT_GENERIC, MAV_MODE_MANUAL_DISARMED, 0,
+			MAV_STATE_ACTIVE);
 
 	uint16_t len = mavlink_msg_to_send_buffer(buf, &msg);
 
-	HAL_UART_Transmit(&huart2, buf, len, HAL_MAX_DELAY);
+	HAL_UART_Transmit(&huart2, buf, len, osWaitForever);
 }
 
 void send_attitude(void) {
@@ -84,10 +81,9 @@ void send_attitude(void) {
 
 	mavlink_msg_attitude_pack(my_system_id, my_component_id, &msg,
 			HAL_GetTick(), -kalman_roll * (3.14 / 180),
-			-kalman_pitch * (3.14 / 180), mag_ext,
-			3.0f, 3.0f, 3.0f);
+			-kalman_pitch * (3.14 / 180), 0, 3.0f, 3.0f, 3.0f);
 	len = mavlink_msg_to_send_buffer(buf, &msg);
-	HAL_UART_Transmit(&huart2, buf, len, HAL_MAX_DELAY);
+	HAL_UART_Transmit(&huart2, buf, len, osWaitForever);
 }
 
 void send_battery_info(void) {
@@ -126,7 +122,7 @@ void send_battery_info(void) {
 			MAV_BATTERY_MODE_UNKNOWN, 0);
 
 	len = mavlink_msg_to_send_buffer(buf, &msg);
-	HAL_UART_Transmit(&huart2, buf, len, HAL_MAX_DELAY);
+	HAL_UART_Transmit(&huart2, buf, len, osWaitForever);
 }
 
 void send_gps_raw_int(void) {
@@ -163,12 +159,9 @@ void send_gps_raw_int(void) {
 			UINT32_MAX, 0);
 
 	len = mavlink_msg_to_send_buffer(buf, &msg);
-	HAL_UART_Transmit(&huart2, buf, len, HAL_MAX_DELAY);
+	HAL_UART_Transmit(&huart2, buf, len, osWaitForever);
 
 }
-
-
-
 
 void send_global_position_int(void) {
 	mavlink_message_t msg;
@@ -189,14 +182,99 @@ void send_global_position_int(void) {
 	int16_t vy = 0;
 	int16_t vz = 0;
 
-	uint16_t hdg = (uint16_t) (course * 100.0f);
 
 	mavlink_msg_global_position_int_pack(my_system_id, my_component_id, &msg,
-			time_boot_ms, lat, lon, alt, relative_alt_mm, vx, vy, vz, hdg);
+			time_boot_ms, lat, lon, alt, relative_alt_mm, vx, vy, vz, 0);
 
 	uint16_t len = mavlink_msg_to_send_buffer(buf, &msg);
-	HAL_UART_Transmit(&huart2, buf, len, HAL_MAX_DELAY);
+	HAL_UART_Transmit(&huart2, buf, len, osWaitForever);
 }
 
+void send_vfr_hud(void)
+{
+    mavlink_message_t msg;
+    uint8_t buf[MAVLINK_MAX_PACKET_LEN];
 
+    static float last_alt = 0.0f;
+    static uint32_t last_time = 0;
 
+    uint32_t now = HAL_GetTick();
+    float dt = (now - last_time) / 1000.0f;
+
+    float altitude = alt_ext;   // meters
+    float climb = 0.0f;
+
+    if (dt > 0.001f)
+    {
+        climb = (altitude - last_alt) / dt;   // m/s
+    }
+
+    last_alt = altitude;
+    last_time = now;
+
+    float groundspeed = gpsSpeed * 0.514444f; // knots → m/s
+    float airspeed = groundspeed;             // no pitot yet
+    uint16_t heading = 0;                     // no mag yet
+    uint16_t throttle = 50;                   // replace if you track throttle %
+
+    mavlink_msg_vfr_hud_pack(
+        1,
+        200,
+        &msg,
+        airspeed,
+        groundspeed,
+        heading,
+        throttle,
+        altitude,
+        climb
+    );
+
+    uint16_t len = mavlink_msg_to_send_buffer(buf, &msg);
+    HAL_UART_Transmit(&huart2, buf, len, osWaitForever);
+}
+
+void send_scaled_pressure(void)
+{
+    mavlink_message_t msg;
+    uint8_t buf[MAVLINK_MAX_PACKET_LEN];
+
+    uint32_t time_boot_ms = HAL_GetTick();
+
+    float press_pa = pressure();
+    float press_hpa = press_pa / 100.0f;
+
+    float temp_c = temperature(0);
+
+    mavlink_msg_scaled_pressure_pack(
+        1,
+        200,
+        &msg,
+        time_boot_ms,
+        press_hpa,          // absolute pressure (hPa)
+        0.0f,               // differential pressure
+        (int16_t)(temp_c * 100.0f),   // temp in centi-deg
+        INT16_MAX           // diff pressure temp unused
+    );
+
+    uint16_t len = mavlink_msg_to_send_buffer(buf, &msg);
+    HAL_UART_Transmit(&huart2, buf, len, osWaitForever);
+}
+
+void send_status_text(uint8_t severity, const char *text)
+{
+    mavlink_message_t msg;
+    uint8_t buf[MAVLINK_MAX_PACKET_LEN];
+
+    mavlink_msg_statustext_pack(
+        1,
+        200,
+        &msg,
+        severity,
+        text,
+        0,      // id (unused unless chunking)
+        0       // chunk_seq
+    );
+
+    uint16_t len = mavlink_msg_to_send_buffer(buf, &msg);
+    HAL_UART_Transmit(&huart2, buf, len, osWaitForever);
+}
