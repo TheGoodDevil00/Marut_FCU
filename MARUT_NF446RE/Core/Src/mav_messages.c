@@ -17,7 +17,7 @@ extern float kalman_roll;
 extern float kalman_pitch;
 
 
-extern UART_HandleTypeDef huart2;
+extern UART_HandleTypeDef huart1;
 
 extern uint8_t rxBuffer[128];
 extern uint8_t rxIndex;
@@ -55,7 +55,7 @@ void send_heartbeat_armed(void) {
 
 	uint16_t len = mavlink_msg_to_send_buffer(buf, &msg);
 
-	HAL_UART_Transmit(&huart2, buf, len, osWaitForever);
+	HAL_UART_Transmit(&huart1, buf, len, osWaitForever);
 }
 
 void send_heartbeat_disarmed(void) {
@@ -68,7 +68,7 @@ void send_heartbeat_disarmed(void) {
 
 	uint16_t len = mavlink_msg_to_send_buffer(buf, &msg);
 
-	HAL_UART_Transmit(&huart2, buf, len, osWaitForever);
+	HAL_UART_Transmit(&huart1, buf, len, osWaitForever);
 }
 
 void send_attitude(void) {
@@ -80,10 +80,10 @@ void send_attitude(void) {
 	uint8_t my_component_id = 200;
 
 	mavlink_msg_attitude_pack(my_system_id, my_component_id, &msg,
-			HAL_GetTick(), -kalman_roll * (3.14 / 180),
+			osKernelGetTickCount(), -kalman_roll * (3.14 / 180),
 			-kalman_pitch * (3.14 / 180), 0, 3.0f, 3.0f, 3.0f);
 	len = mavlink_msg_to_send_buffer(buf, &msg);
-	HAL_UART_Transmit(&huart2, buf, len, osWaitForever);
+	HAL_UART_Transmit(&huart1, buf, len, osWaitForever);
 }
 
 void send_battery_info(void) {
@@ -122,7 +122,7 @@ void send_battery_info(void) {
 			MAV_BATTERY_MODE_UNKNOWN, 0);
 
 	len = mavlink_msg_to_send_buffer(buf, &msg);
-	HAL_UART_Transmit(&huart2, buf, len, osWaitForever);
+	HAL_UART_Transmit(&huart1, buf, len, osWaitForever);
 }
 
 void send_gps_raw_int(void) {
@@ -145,7 +145,7 @@ void send_gps_raw_int(void) {
 	uint16_t epv = UINT16_MAX;
 
 	mavlink_msg_gps_raw_int_pack(my_system_id, my_component_id, &msg,
-			(uint64_t) HAL_GetTick() * 1000ULL, fix_type, lat_int, lon_int,
+			(uint64_t) osKernelGetTickCount()* 1000ULL, fix_type, lat_int, lon_int,
 
 			alt_mm,
 
@@ -159,7 +159,7 @@ void send_gps_raw_int(void) {
 			UINT32_MAX, 0);
 
 	len = mavlink_msg_to_send_buffer(buf, &msg);
-	HAL_UART_Transmit(&huart2, buf, len, osWaitForever);
+	HAL_UART_Transmit(&huart1, buf, len, osWaitForever);
 
 }
 
@@ -187,7 +187,7 @@ void send_global_position_int(void) {
 			time_boot_ms, lat, lon, alt, relative_alt_mm, vx, vy, vz, 0);
 
 	uint16_t len = mavlink_msg_to_send_buffer(buf, &msg);
-	HAL_UART_Transmit(&huart2, buf, len, osWaitForever);
+	HAL_UART_Transmit(&huart1, buf, len, osWaitForever);
 }
 
 void send_vfr_hud(void)
@@ -198,7 +198,7 @@ void send_vfr_hud(void)
     static float last_alt = 0.0f;
     static uint32_t last_time = 0;
 
-    uint32_t now = HAL_GetTick();
+    uint32_t now = osKernelGetTickCount();
     float dt = (now - last_time) / 1000.0f;
 
     float altitude = alt_ext;   // meters
@@ -230,7 +230,7 @@ void send_vfr_hud(void)
     );
 
     uint16_t len = mavlink_msg_to_send_buffer(buf, &msg);
-    HAL_UART_Transmit(&huart2, buf, len, osWaitForever);
+    HAL_UART_Transmit(&huart1, buf, len, osWaitForever);
 }
 
 void send_scaled_pressure(void)
@@ -238,7 +238,7 @@ void send_scaled_pressure(void)
     mavlink_message_t msg;
     uint8_t buf[MAVLINK_MAX_PACKET_LEN];
 
-    uint32_t time_boot_ms = HAL_GetTick();
+    uint32_t time_boot_ms = osKernelGetTickCount();
 
     float press_pa = pressure();
     float press_hpa = press_pa / 100.0f;
@@ -257,7 +257,7 @@ void send_scaled_pressure(void)
     );
 
     uint16_t len = mavlink_msg_to_send_buffer(buf, &msg);
-    HAL_UART_Transmit(&huart2, buf, len, osWaitForever);
+    HAL_UART_Transmit(&huart1, buf, len, osWaitForever);
 }
 
 void send_status_text(uint8_t severity, const char *text)
@@ -276,5 +276,5 @@ void send_status_text(uint8_t severity, const char *text)
     );
 
     uint16_t len = mavlink_msg_to_send_buffer(buf, &msg);
-    HAL_UART_Transmit(&huart2, buf, len, osWaitForever);
+    HAL_UART_Transmit(&huart1, buf, len, osWaitForever);
 }

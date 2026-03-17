@@ -2,6 +2,7 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <math.h>
+#include "cmsis_os.h"
 #include "mpu6050.h"
 
 extern float calibration_const_global_roll_accel;
@@ -123,12 +124,12 @@ float mpu_roll_pitch_read_accel(int ret) {
 
 float mpu_roll_pitch_calibration_accel(int rp) {
 	float r = 0, p = 0;
-	for (int i = 0; i < 1500; i++) {
+	for (int i = 0; i < 2000; i++) {
 		r += mpu_roll_pitch_read_accel(0);
 		p += mpu_roll_pitch_read_accel(1);
 	}
-	float rc = r / 1500.0f;
-	float pc = p / 1500.0f;
+	float rc = r / 2000.0f;
+	float pc = p / 2000.0f;
 	if (rp == 0)
 		return rc;
 	else if (rp == 1)
@@ -139,12 +140,12 @@ float mpu_roll_pitch_calibration_accel(int rp) {
 
 float mpu_roll_pitch_calibration_gyro(int rp) {
 	float r = 0, p = 0;
-	for (int i = 0; i < 1500; i++) {
+	for (int i = 0; i < 2000; i++) {
 		r += mpu_roll_pitch_read_gyro(0, 0.001f);
 		p += mpu_roll_pitch_read_gyro(1, 0.001f);
 	}
-	float rc = r / 1500.0f;
-	float pc = p / 1500.0f;
+	float rc = r / 2000.0f;
+	float pc = p / 2000.0f;
 	if (rp == 0)
 		return rc;
 	else if (rp == 1)
@@ -155,15 +156,15 @@ float mpu_roll_pitch_calibration_gyro(int rp) {
 
 float mpu_gyro_calibration(int axis) {
 	float gx = 0, gy = 0, gz = 0;
-	for (int i = 0; i < 1500; i++) {
+	for (int i = 0; i < 2000; i++) {
 		gx += mpu_gyro_read(0);
 		gy += mpu_gyro_read(1);
 		gz += mpu_gyro_read(2);
-		HAL_Delay(1);
+		osDelay(1);
 	}
-	float ox = gx / 1500.0f;
-	float oy = gy / 1500.0f;
-	float oz = gz / 1500.0f;
+	float ox = gx / 2000.0f;
+	float oy = gy / 2000.0f;
+	float oz = gz / 2000.0f;
 	if (axis == 0)
 		return ox;
 	else if (axis == 1)
@@ -176,17 +177,15 @@ float mpu_gyro_calibration(int axis) {
 
 float mpu_accel_calibration(int axis) {
 	float ax = 0, ay = 0, az = 0;
-	for (int i = 0; i < 1000; i++) {
+	for (int i = 0; i < 2000; i++) {
 		ax += mpu_accel_read(0);
-		HAL_Delay(1);
 		ay += mpu_accel_read(1);
-		HAL_Delay(1);
 		az += mpu_accel_read(2);
-		HAL_Delay(1);
+		osDelay(1);
 	}
-	float ox = ax / 1000.0f;
-	float oy = ay / 1000.0f;
-	float oz = az / 1000.0f;
+	float ox = ax / 2000.0f;
+	float oy = ay / 2000.0f;
+	float oz = az / 2000.0f;
 	if (axis == 0)
 		return ox;
 	else if (axis == 1)
@@ -276,7 +275,7 @@ double Kalman_get_angle(Kalman_t *Kalman, double newAngle, double newRate,
 
 void mpu_get_kalman_angles(float *roll, float *pitch) {
 	static uint32_t lastTick = 0;
-	uint32_t now = HAL_GetTick();
+	uint32_t now = osKernelGetTickCount();
 	float dt = (now - lastTick) / 1000.0f;
 	lastTick = now;
 

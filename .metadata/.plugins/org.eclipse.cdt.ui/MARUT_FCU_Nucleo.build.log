@@ -1,10 +1,18 @@
-14:56:24 **** Incremental Build of configuration Debug for project MARUT_FCU_Nucleo ****
+15:21:09 **** Incremental Build of configuration Debug for project MARUT_FCU_Nucleo ****
 make -j16 all 
+arm-none-eabi-gcc -mcpu=cortex-m4 -g3 -DDEBUG -c -I../Core/Inc -I../Drivers/STM32F4xx_HAL_Driver/Inc -I../Drivers/STM32F4xx_HAL_Driver/Inc/Legacy -I../Middlewares/Third_Party/FreeRTOS/Source/include -I../Middlewares/Third_Party/FreeRTOS/Source/CMSIS_RTOS_V2 -I../Middlewares/Third_Party/FreeRTOS/Source/portable/GCC/ARM_CM4F -I../Drivers/CMSIS/Device/ST/STM32F4xx/Include -I../Drivers/CMSIS/Include -x assembler-with-cpp -MMD -MP -MF"Core/Startup/startup_stm32f446retx.d" -MT"Core/Startup/startup_stm32f446retx.o" --specs=nano.specs -mfpu=fpv4-sp-d16 -mfloat-abi=hard -mthumb -o "Core/Startup/startup_stm32f446retx.o" "../Core/Startup/startup_stm32f446retx.s"
+arm-none-eabi-gcc "../Core/Src/main.c" -mcpu=cortex-m4 -std=gnu11 -g3 -DDEBUG -DUSE_HAL_DRIVER -DSTM32F446xx -c -I../Core/Inc -I../Drivers/STM32F4xx_HAL_Driver/Inc -I../Drivers/STM32F4xx_HAL_Driver/Inc/Legacy -I../Drivers/CMSIS/Device/ST/STM32F4xx/Include -I../Drivers/CMSIS/Include -I../Middlewares/Third_Party/FreeRTOS/Source/include -I../Middlewares/Third_Party/FreeRTOS/Source/CMSIS_RTOS_V2 -I../Middlewares/Third_Party/FreeRTOS/Source/portable/GCC/ARM_CM4F -O0 -ffunction-sections -fdata-sections -Wall -fstack-usage -fcyclomatic-complexity -MMD -MP -MF"Core/Src/main.d" -MT"Core/Src/main.o" --specs=nano.specs -mfpu=fpv4-sp-d16 -mfloat-abi=hard -mthumb -o "Core/Src/main.o"
+arm-none-eabi-gcc -o "MARUT_FCU_Nucleo.elf" @"objects.list"   -mcpu=cortex-m4 -T"C:\Embedded stuff\Marut_workspace_stm32\MARUT_FCU_Nucleo\STM32F446RETX_FLASH.ld" --specs=nosys.specs -Wl,-Map="MARUT_FCU_Nucleo.map" -Wl,--gc-sections -static --specs=nano.specs -mfpu=fpv4-sp-d16 -mfloat-abi=hard -mthumb -u _printf_float -u _scanf_float -Wl,--start-group -lc -lm -Wl,--end-group
+Finished building target: MARUT_FCU_Nucleo.elf
+ 
 arm-none-eabi-size  MARUT_FCU_Nucleo.elf 
+arm-none-eabi-objdump -h -S MARUT_FCU_Nucleo.elf  > "MARUT_FCU_Nucleo.list"
    text	   data	    bss	    dec	    hex	filename
-  82292	    476	  30100	 112868	  1b8e4	MARUT_FCU_Nucleo.elf
+  82548	    476	  30172	 113196	  1ba2c	MARUT_FCU_Nucleo.elf
 Finished building: default.size.stdout
  
+Finished building: MARUT_FCU_Nucleo.list
+ 
 
-14:56:24 Build Finished. 0 errors, 0 warnings. (took 562ms)
+15:21:12 Build Finished. 0 errors, 0 warnings. (took 3s.559ms)
 

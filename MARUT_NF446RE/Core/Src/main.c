@@ -71,7 +71,7 @@ osStaticThreadDef_t ArmDisarmControlBlock;
 const osThreadAttr_t ArmDisarm_attributes = { .name = "ArmDisarm", .cb_mem =
 		&ArmDisarmControlBlock, .cb_size = sizeof(ArmDisarmControlBlock),
 		.stack_mem = &ArmDisarmBuffer[0], .stack_size = sizeof(ArmDisarmBuffer),
-		.priority = (osPriority_t) osPriorityNormal, };
+		.priority = (osPriority_t) osPriorityLow, };
 /* Definitions for ModeHandler */
 osThreadId_t ModeHandlerHandle;
 uint32_t ModeHandlerBuffer[128];
@@ -80,7 +80,7 @@ const osThreadAttr_t ModeHandler_attributes = { .name = "ModeHandler", .cb_mem =
 		&ModeHandlerControlBlock, .cb_size = sizeof(ModeHandlerControlBlock),
 		.stack_mem = &ModeHandlerBuffer[0], .stack_size =
 				sizeof(ModeHandlerBuffer), .priority =
-				(osPriority_t) osPriorityNormal, };
+				(osPriority_t) osPriorityLow, };
 /* Definitions for Debounce_Handle */
 osThreadId_t Debounce_HandleHandle;
 uint32_t Debounce_HandleBuffer[128];
@@ -90,7 +90,7 @@ const osThreadAttr_t Debounce_Handle_attributes = { .name = "Debounce_Handle",
 				sizeof(Debounce_HandleControlBlock), .stack_mem =
 				&Debounce_HandleBuffer[0], .stack_size =
 				sizeof(Debounce_HandleBuffer), .priority =
-				(osPriority_t) osPriorityNormal, };
+				(osPriority_t) osPriorityLow, };
 /* Definitions for QuadTask */
 osThreadId_t QuadTaskHandle;
 uint32_t QuadTaskBuffer[2024];
@@ -108,7 +108,25 @@ const osThreadAttr_t TelemetryTask_attributes = { .name = "TelemetryTask",
 				sizeof(TelemetryTaskControlBlock), .stack_mem =
 				&TelemetryTaskBuffer[0], .stack_size =
 				sizeof(TelemetryTaskBuffer), .priority =
-				(osPriority_t) osPriorityHigh, };
+				(osPriority_t) osPriorityNormal, };
+/* Definitions for FixedWingTask */
+osThreadId_t FixedWingTaskHandle;
+uint32_t FixedWingTaskBuffer[2024];
+osStaticThreadDef_t FixedWingTaskControlBlock;
+const osThreadAttr_t FixedWingTask_attributes = { .name = "FixedWingTask",
+		.cb_mem = &FixedWingTaskControlBlock, .cb_size =
+				sizeof(FixedWingTaskControlBlock), .stack_mem =
+				&FixedWingTaskBuffer[0], .stack_size =
+				sizeof(FixedWingTaskBuffer), .priority =
+				(osPriority_t) osPriorityRealtime, };
+/* Definitions for VtolMode */
+osThreadId_t VtolModeHandle;
+uint32_t VtolModeBuffer[2024];
+osStaticThreadDef_t VtolModeControlBlock;
+const osThreadAttr_t VtolMode_attributes = { .name = "VtolMode", .cb_mem =
+		&VtolModeControlBlock, .cb_size = sizeof(VtolModeControlBlock),
+		.stack_mem = &VtolModeBuffer[0], .stack_size = sizeof(VtolModeBuffer),
+		.priority = (osPriority_t) osPriorityRealtime, };
 /* Definitions for timer_sem */
 osSemaphoreId_t timer_semHandle;
 const osSemaphoreAttr_t timer_sem_attributes = { .name = "timer_sem" };
@@ -149,7 +167,6 @@ volatile uint8_t ppm_new_data_flag = 0;
 volatile uint32_t last_capture = 0;
 
 char msg[100];
-int pushkar = 0;
 
 volatile uint32_t ICValue_1 = 0;
 volatile uint32_t frequency_1 = 0;
@@ -283,7 +300,30 @@ uint32_t current_tick_vtol = 0;
 float alt_ext = 0;
 float mag_ext = 0;
 
+int task_1_running = 0;
+int task_2_running = 0;
+int task_3_running = 0;
+int task_4_running = 0;
+int task_5_running = 0;
+
+uint32_t t1, t2, dt_n;
+int tim_flag = 0;
+
+static uint32_t last = 0;
+uint32_t now;
+
+int m_t = 0;
+
 int measure = 0;
+
+float g_global_x = 0;
+float g_global_y = 0;
+float g_global_z = 0;
+
+float a_global_x = 0;
+float a_global_y = 0;
+float a_global_z = 0;
+
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -304,6 +344,8 @@ void mode_handler(void *argument);
 void debounce_task(void *argument);
 void quad_mode(void *argument);
 void telemetry_task(void *argument);
+void fw_mode(void *argument);
+void vtol_task(void *argument);
 
 /* USER CODE BEGIN PFP */
 
@@ -314,7 +356,7 @@ void telemetry_task(void *argument);
 PUTCHAR_PROTOTYPE {
 	/* Place your implementation of fputc here */
 	/* e.g. write a character to the USART1 and Loop until the end of transmission */
-	HAL_UART_Transmit(&huart2, (uint8_t*) &ch, 1, 0xFFFF);
+	HAL_UART_Transmit(&huart1, (uint8_t*) &ch, 1, 0xFFFF);
 
 	return ch;
 }
@@ -473,14 +515,13 @@ void set_raw_ccr(int ccr_val, int channel) // use this instead , cofnigured for 
 
 void pid_equation(float Error, float P, float I, float D, float PrevError,
 		float PrevIterm) {
-
 	float Pterm = P * Error; // - simple multiplication of p term with error
 	float Iterm = PrevIterm + I * (Error + PrevError) * 0.0025 / 2; //trapezoidal integration - aryan
 	if (Iterm > 400) // i term negative and positive clamp - aryan
 		Iterm = 400;
 	else if (Iterm < -400)
 		Iterm = -400;
-	float Dterm = D * (Error - PrevError) / 0.004; // - trapezoidal derivative - aryan
+	float Dterm = D * (Error - PrevError) / 0.0025; // - trapezoidal derivative - aryan
 	float PIDOutput = Pterm + Iterm + Dterm;
 	if (PIDOutput > 400) // pid output limiter, low for laggier response, higher for faster response
 		PIDOutput = 400;
@@ -513,7 +554,6 @@ void reset_pid(void) {
 	PrevItermAngleRoll = 0;
 	PrevItermAnglePitch = 0;
 }
-
 
 void servo_test_sweep(void) {
 	int pulse;
@@ -562,6 +602,47 @@ void servo_test_sweep(void) {
 	//printf("Servo/ESC Sweep Test Complete.\r\n");
 }
 
+void motor_check(void) {
+	int pwm;
+
+	int start_pwm = 800;
+	int target_pwm = 1200;
+	int step = 1;
+
+	/* Start PWM if not already running */
+	HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_1);
+	HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_2);
+	HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_3);
+
+	HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_1);
+	HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_2);
+	HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_3);
+	HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_4);
+
+	/* Ramp slowly from 1000 -> 1500 */
+	for (pwm = start_pwm; pwm <= target_pwm; pwm += step) {
+		set_raw_ccr(pwm, 5);
+		set_raw_ccr(pwm, 6);
+		set_raw_ccr(pwm, 4);
+		set_raw_ccr(pwm, 7);
+
+		m_t = pwm;
+
+		osDelay(20); // slow ramp
+	}
+
+	/* Hold at 1500 forever */
+	while (1) {
+		set_raw_ccr(target_pwm, 5);
+		set_raw_ccr(target_pwm, 6);
+		set_raw_ccr(target_pwm, 4);
+		set_raw_ccr(target_pwm, 7);
+
+		osDelay(50);
+
+	}
+}
+
 /* USER CODE END 0 */
 
 /**
@@ -605,24 +686,13 @@ int main(void) {
 	/* USER CODE BEGIN 2 */
 	__HAL_RCC_SYSCFG_CLK_ENABLE(); // mx forgets to enable rcc syscfg, if exti itr not working add this always after code generation - aryan
 
-	HAL_UART_Transmit(&huart2, (uint8_t*) "Starting System Init...\n", 24,
+	HAL_UART_Transmit(&huart1, (uint8_t*) "Starting System Init...\n", 24,
 			0xFFFF);
 
-	/*for (uint8_t addr = 1; addr < 127; addr++)
-	 {
-	 if (HAL_I2C_IsDeviceReady(&hi2c1, addr << 1, 2, 50) == HAL_OK)
-	 {
-	 printf("Found device at 0x%02X\n", addr);
-	 }
-	 }*/
-
 	mpu_init();
-	printf("Init ok mpu \n");
-
 	bmp_i2c_setup();
-	printf("Init ok bmp \n");
 
-	HAL_Delay(3000);
+	//HAL_Delay(3000);
 	//printf("Init ok bmp/n");
 
 	calibration_const_global_roll_accel = mpu_roll_pitch_calibration_accel(0);
@@ -631,6 +701,11 @@ int main(void) {
 	calibration_const_global_gx = mpu_gyro_calibration(0);
 	calibration_const_global_gy = mpu_gyro_calibration(1);
 	calibration_const_global_gz = mpu_gyro_calibration(2);
+
+	mode_flag = 0;
+
+	HAL_UART_Transmit(&huart1, (uint8_t*) "Calibration completed\n", 24,
+			0xFFFF);
 
 	HAL_TIM_PWM_Start_IT(&htim4, TIM_CHANNEL_1);
 	HAL_TIM_Base_Init(&htim10);
@@ -679,6 +754,12 @@ int main(void) {
 	/* creation of TelemetryTask */
 	TelemetryTaskHandle = osThreadNew(telemetry_task, NULL,
 			&TelemetryTask_attributes);
+
+	/* creation of FixedWingTask */
+	FixedWingTaskHandle = osThreadNew(fw_mode, NULL, &FixedWingTask_attributes);
+
+	/* creation of VtolMode */
+	VtolModeHandle = osThreadNew(vtol_task, NULL, &VtolMode_attributes);
 
 	/* USER CODE BEGIN RTOS_THREADS */
 	/* add threads, ... */
@@ -1176,8 +1257,7 @@ static void MX_GPIO_Init(void) {
 	HAL_GPIO_WritePin(LD2_GPIO_Port, LD2_Pin, GPIO_PIN_RESET);
 
 	/*Configure GPIO pin Output Level */
-	HAL_GPIO_WritePin(GPIOB, GPIO_PIN_12 | GPIO_PIN_13 | GPIO_PIN_14,
-			GPIO_PIN_RESET);
+	HAL_GPIO_WritePin(GPIOB, LED_1_Pin | LED_2_Pin | LED_3_Pin, GPIO_PIN_RESET);
 
 	/*Configure GPIO pin : B1_Pin */
 	GPIO_InitStruct.Pin = B1_Pin;
@@ -1192,8 +1272,8 @@ static void MX_GPIO_Init(void) {
 	GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
 	HAL_GPIO_Init(LD2_GPIO_Port, &GPIO_InitStruct);
 
-	/*Configure GPIO pins : PB12 PB13 PB14 */
-	GPIO_InitStruct.Pin = GPIO_PIN_12 | GPIO_PIN_13 | GPIO_PIN_14;
+	/*Configure GPIO pins : LED_1_Pin LED_2_Pin LED_3_Pin */
+	GPIO_InitStruct.Pin = LED_1_Pin | LED_2_Pin | LED_3_Pin;
 	GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
 	GPIO_InitStruct.Pull = GPIO_NOPULL;
 	GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
@@ -1219,20 +1299,21 @@ void arm_disarm(void *argument) {
 	/* USER CODE BEGIN 5 */
 	int ioce = 0; //execute once flags
 	int joce = 0;
+
 	/* Infinite loop */
 	for (;;) {
-		if (display_channels[4] > 1900 && ioce != 1) // arm condition, //rc channel 5 (display channel + 1 = rc channel)
-				{
-			joce = 0; //- prev flag rst
 
-			arm_flag = 1;  // - arm/disarm flag set/reset for other tasks
+		if (display_channels[4] > 1900 && ioce != 1) {
+			joce = 0;
+
+			arm_flag = 1;
 			disarm_flag = 0;
 
-			HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_1); //pwm out tim2
+			HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_1);
 			HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_2);
 			HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_3);
 
-			HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_1); //pwm out tim3
+			HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_1);
 			HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_2);
 			HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_3);
 			HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_4);
@@ -1245,20 +1326,23 @@ void arm_disarm(void *argument) {
 			disarm_flag = 1;
 			reset_pid();
 
-			HAL_TIM_PWM_Stop(&htim2, TIM_CHANNEL_1); //pwm out tim2
-			HAL_TIM_PWM_Stop(&htim2, TIM_CHANNEL_2);
-			HAL_TIM_PWM_Stop(&htim2, TIM_CHANNEL_3);
+			/*HAL_TIM_PWM_Stop(&htim2, TIM_CHANNEL_1);
+			 HAL_TIM_PWM_Stop(&htim2, TIM_CHANNEL_2);
+			 HAL_TIM_PWM_Stop(&htim2, TIM_CHANNEL_3);
 
-			HAL_TIM_PWM_Stop(&htim3, TIM_CHANNEL_1); //pwm out tim3
-			HAL_TIM_PWM_Stop(&htim3, TIM_CHANNEL_2);
-			HAL_TIM_PWM_Stop(&htim3, TIM_CHANNEL_3);
-			HAL_TIM_PWM_Stop(&htim3, TIM_CHANNEL_4);
+			 HAL_TIM_PWM_Stop(&htim3, TIM_CHANNEL_1);
+			 HAL_TIM_PWM_Stop(&htim3, TIM_CHANNEL_2);
+			 HAL_TIM_PWM_Stop(&htim3, TIM_CHANNEL_3);
+			 HAL_TIM_PWM_Stop(&htim3, TIM_CHANNEL_4);*/
 			joce = 1;
 		} else {
 			__NOP();
 		}
 
-		osDelay(50);
+		task_4_running = 1;
+		osDelay(25);
+		task_4_running = 0;
+		osDelay(25);
 
 	}
 	/* USER CODE END 5 */
@@ -1273,18 +1357,46 @@ void arm_disarm(void *argument) {
 /* USER CODE END Header_mode_handler */
 void mode_handler(void *argument) {
 	/* USER CODE BEGIN mode_handler */
+	int ioc = 0;
+	int joc = 0;
+	int coc = 0;
 	/* Infinite loop */
 	for (;;) {
+
 		uint32_t half_ms;
 
-		if (mode_flag == 0) //default state - neutral / quad
-				{
+		if (mode_flag == 0) {
+			if (!ioc) {
+				QuadTaskHandle = osThreadNew(quad_mode, NULL,
+						&QuadTask_attributes);
+				osThreadTerminate(FixedWingTaskHandle);
+				osThreadTerminate(VtolModeHandle);
+				ioc = 1;
+			}
+			joc = 0;
+			coc = 0;
 			half_ms = 1000;
-		} else if (mode_flag == 1) // fixed wing mode
-				{
+		} else if (mode_flag == 1) {
+			if (!joc) {
+				FixedWingTaskHandle = osThreadNew(fw_mode, NULL,
+						&FixedWingTask_attributes);
+				osThreadTerminate(QuadTaskHandle);
+				osThreadTerminate(VtolModeHandle);
+				joc = 1;
+			}
+			ioc = 0;
+			coc = 0;
 			half_ms = 334;
-		} else if (mode_flag == 2) // vtol mode
-				{
+		} else if (mode_flag == 2) {
+			if (!coc) {
+				VtolModeHandle = osThreadNew(vtol_task, NULL,
+						&VtolMode_attributes);
+				osThreadTerminate(QuadTaskHandle);
+				osThreadTerminate(FixedWingTaskHandle);
+				coc = 1;
+			}
+			ioc = 0;
+			joc = 0;
 			half_ms = 100;
 		} else {
 			__NOP();
@@ -1292,6 +1404,10 @@ void mode_handler(void *argument) {
 
 		HAL_GPIO_TogglePin(GPIOC, GPIO_PIN_13);
 		osDelay(half_ms);
+		osDelay(5);
+		task_3_running = 1;
+		osDelay(5);
+		task_3_running = 0;
 	}
 	/* USER CODE END mode_handler */
 }
@@ -1308,7 +1424,10 @@ void debounce_task(void *argument) {
 	/* Infinite loop */
 	for (;;) {
 		mode_flag = temp_mode_flag;
-		osDelay(10);
+		task_5_running = 1;
+		osDelay(5);
+		task_5_running = 0;
+		osDelay(5);
 	}
 	/* USER CODE END debounce_task */
 }
@@ -1326,464 +1445,254 @@ void quad_mode(void *argument) {
 	static int16_t roll_offset = 0;
 	static int16_t pitch_offset = 0;
 	static int sample_limit = 0;
-	//HAL_TIM_Base_Start(&htim10);
-	//last_time = micros();
+	HAL_TIM_Base_Start(&htim9);
+
 	/* Infinite loop */
+
 	for (;;) {
-		//uint32_t now = micros();
-		if (mode_flag == 0) {
-			////////ppm/////////
-			memcpy(display_channels, (void*) ppm_ready_channels,
-					sizeof(ppm_ready_channels));
-			ppm_new_data_flag = 0;
 
-			if (sample_limit < 25) {
+		osSemaphoreAcquire(timer_semHandle, osWaitForever);
 
-				roll_offset = display_channels[0] - 1500;
-				pitch_offset = display_channels[1] - 1500;
+		//motor_check();
 
-				if (roll_offset > 100)
-					roll_offset = 100;
-				if (roll_offset < -100)
-					roll_offset = -100;
-				if (pitch_offset > 100)
-					pitch_offset = 100;
-				if (pitch_offset < -100)
-					pitch_offset = -100;
+		if (sample_limit < 25) {
 
-			}
-			sample_limit++;
-			display_channels[0] -= roll_offset;
-			display_channels[1] -= pitch_offset;
+			roll_offset = display_channels[0] - 1500;
+			pitch_offset = display_channels[1] - 1500;
 
-			if (display_channels[0] > 1495 && display_channels[0] < 1505)
-				display_channels[0] = 1500;
+			if (roll_offset > 100)
+				roll_offset = 100;
+			if (roll_offset < -100)
+				roll_offset = -100;
+			if (pitch_offset > 100)
+				pitch_offset = 100;
+			if (pitch_offset < -100)
+				pitch_offset = -100;
 
-			if (display_channels[1] > 1495 && display_channels[1] < 1505)
-				display_channels[1] = 1500;
-
-			if (display_channels[0] < 1000)
-				display_channels[0] = 1000;
-			if (display_channels[0] > 2000)
-				display_channels[0] = 2000;
-
-			if (display_channels[1] < 1000)
-				display_channels[1] = 1000;
-			if (display_channels[1] > 2000)
-				display_channels[1] = 2000;
-
-			//////ppm//////////
-
-
-
-			if (arm_flag == 1 && disarm_flag == 0) {
-
-				if (osSemaphoreAcquire(timer_semHandle, osWaitForever)
-						== osOK) {
-
-					if (display_channels[7] > 1900) {
-
-						TIM9->CNT = 0;
-						HAL_TIM_Base_Start(&htim9);
-						//	pushkar ^= 1;
-						//desired set point calc - aryan
-						DesiredAngleRoll = 0.10 * (display_channels[0] - 1500);
-						DesiredAnglePitch = 0.10 * (display_channels[1] - 1500);
-
-						if (DesiredAngleRoll > 20.0f) {
-							DesiredAngleRoll = 20.0f;
-						}
-						if (DesiredAngleRoll < -20.0f) {
-							DesiredAngleRoll = -20.0f;
-						}
-
-						if (DesiredAnglePitch > 20.0f) {
-							DesiredAnglePitch = 20.0f;
-						}
-						if (DesiredAnglePitch < -20.0f) {
-							DesiredAnglePitch = -20.0f;
-						}
-
-						InputThrottle = display_channels[2];
-						DesiredRateYaw = 0.15 * (display_channels[3] - 1500);
-
-						DesiredRateYaw = -DesiredRateYaw;
-
-						//realtime pid mapping - uncomment out for tuning
-
-						//
-						//						 PAngleRoll_S = mapRCtoPID(display_channels[5]);
-						//						 PAnglePitch_S = mapRCtoPID(display_channels[5]);
-						//
-						//						 IAngleRoll_S = mapRCtoPID(display_channels[6]);
-						//						 IAnglePitchS = mapRCtoPID(display_channels[6]);
-						//
-
-						/*stabilize controller
-						 error calc (desired - current = error oof)*/
-						mpu_get_kalman_angles(&kalman_roll, &kalman_pitch);
-
-						ErrorAngleRoll = DesiredAngleRoll - kalman_roll;
-						ErrorAnglePitch = DesiredAnglePitch - kalman_pitch;
-
-						//actual pid calculations and value return - aryan
-						pid_equation(ErrorAngleRoll, PAngleRoll_S, IAngleRoll_S,
-								DAngleRoll_S, PrevErrorAngleRoll,
-								PrevItermAngleRoll);
-						DesiredRateRoll = PIDReturn[0];
-						PrevErrorAngleRoll = PIDReturn[1];
-						PrevItermAngleRoll = PIDReturn[2];
-						pid_equation(ErrorAnglePitch, PAnglePitch_S,
-								IAnglePitch_S, DAnglePitch_S,
-								PrevErrorAnglePitch, PrevItermAnglePitch);
-						DesiredRatePitch = PIDReturn[0];
-						PrevErrorAnglePitch = PIDReturn[1];
-						PrevItermAnglePitch = PIDReturn[2];
-
-						//rate controller
-						ErrorRateRoll = DesiredRateRoll
-								- (mpu_gyro_read(0)
-										- calibration_const_global_gx); //x
-						ErrorRatePitch = DesiredRatePitch
-								- (mpu_gyro_read(1)
-										- calibration_const_global_gy); //y
-						ErrorRateYaw = DesiredRateYaw
-								- (mpu_gyro_read(2)
-										- calibration_const_global_gz); //z
-
-						pid_equation(ErrorRateRoll, PRateRoll_S, IRateRoll_S,
-								DRateRoll_S, PrevErrorRateRoll,
-								PrevItermRateRoll);
-						InputRoll = PIDReturn[0];
-						PrevErrorRateRoll = PIDReturn[1];
-						PrevItermRateRoll = PIDReturn[2];
-						pid_equation(ErrorRatePitch, PRatePitch_S, IRatePitch_S,
-								DRatePitch_S, PrevErrorRatePitch,
-								PrevItermRatePitch);
-						InputPitch = PIDReturn[0];
-						PrevErrorRatePitch = PIDReturn[1];
-						PrevItermRatePitch = PIDReturn[2];
-						pid_equation(ErrorRateYaw, PRateYaw_S, IRateYaw_S,
-								DRateYaw_S, PrevErrorRateYaw, PrevItermRateYaw);
-						InputYaw = PIDReturn[0];
-						PrevErrorRateYaw = PIDReturn[1];
-						PrevItermRateYaw = PIDReturn[2];
-
-						/*
-						 printf(
-						 "THR=%u ERR[R%+.2f P%+.2f Y%+.2f] PIDOUT[R%+.2f P%+.2f Y%+.2f] MIX[%ld,%ld,%ld,%ld]\n",
-						 display_channels[2], ErrorRateRoll, ErrorRatePitch,
-						 ErrorRateYaw, InputRoll, InputPitch, InputYaw, (long) M1,
-						 (long) M2, (long) M3, (long) M4);
-						 */
-
-						//corresponds to each of the 4 motors and their respective motor mixing formulas - aryan
-						//yaw is reversed, so basically flipping it back - aryan
-						M1 = 1.024f
-								* (InputThrottle - InputRoll - InputPitch
-										- InputYaw);
-						M2 = 1.024f
-								* (InputThrottle - InputRoll + InputPitch
-										+ InputYaw);
-						M3 = 1.024f
-								* (InputThrottle + InputRoll + InputPitch
-										- InputYaw);
-						M4 = 1.024f
-								* (InputThrottle + InputRoll - InputPitch
-										+ InputYaw);
-
-						//debug print
-
-						/*
-						 printf("THR=%u MIX=[%ld,%ld,%ld,%ld] PID=[R%+.1f P%+.1f Y%+.1f] OUT=[%lu,%lu,%lu,%lu]\n",
-						 display_channels[2],
-						 (long)M1, (long)M2, (long)M3, (long)M4,
-						 InputRoll, InputPitch, InputYaw,
-						 (unsigned long)M1, (unsigned long)M2,
-						 (unsigned long)M3, (unsigned long)M4);
-
-						 printf("GZ raw=%+.2f  GZ cal=%+.2f  ErrorY=%+.2f\n",
-						 mpu_gyro_read(2),
-						 mpu_gyro_read(2) - calibration_const_global_gz,
-						 ErrorRateYaw);
-						 */
-
-						//basically the lowest the throttle can go - aryan
-						if (M1 < ThrottleIdle)
-							M1 = ThrottleIdle;
-						if (M2 < ThrottleIdle)
-							M2 = ThrottleIdle;
-						if (M3 < ThrottleIdle)
-							M3 = ThrottleIdle;
-						if (M4 < ThrottleIdle)
-							M4 = ThrottleIdle;
-
-						// capping maximum m1-4 values - aryan
-
-						if (M1 > 2000)
-							M1 = 1999;
-						if (M2 > 2000)
-							M2 = 1999;
-						if (M3 > 2000)
-							M3 = 1999;
-						if (M4 > 2000)
-							M4 = 1999;
-
-						//whenever 0 throttle issued to remote then cutoff and reset pid  - aryan
-
-						int ThrottleCutOff = 1000;
-						if (display_channels[2] < 1100) {
-							M1 = ThrottleCutOff;
-							M2 = ThrottleCutOff;
-							M3 = ThrottleCutOff;
-							M4 = ThrottleCutOff;
-							reset_pid();
-							/*							pushkar ^= 1;*/
-						}
-
-						//finally send the issued motor power commands to the motors themselves - aryan
-
-						//channel notes on our test setup - aryan
-
-						/*	top right - tim 3 ch 1  -
-						 top left - tim 3 ch 3
-						 bottom right - tim 3 ch 4
-						 bottom left - tim 3 ch 2*/
-
-						set_raw_ccr(M1, 5); // func 4 is m3
-						set_raw_ccr(M4, 7); // func 7 is m4
-						set_raw_ccr(M3, 4);  // func 5 is m1
-						set_raw_ccr(M2, 6); //func 6 is m2
-
-						//debug prints
-
-						/*
-						 printf("VVC is %f\n",vertical_velocity());
-
-						 printf("P Roll and pitch is %f and I Roll and pitch is %f\n",PRatePitch, IRatePitch);
-
-						 printf("CH: "
-						 "0=%4u "
-						 "1=%4u "
-						 "2=%4u "
-						 "3=%4u "
-						 "4=%4u "
-						 "5=%4u "
-						 "6=%4u\r\n", display_channels[0], display_channels[1],
-						 display_channels[2], display_channels[3],
-						 display_channels[4], display_channels[5],
-						 display_channels[6]);
-
-
-
-						 printf("M1:%lu  M2:%lu  M3:%lu  M4:%lu\r\n",
-						 (unsigned long) M1, (unsigned long) M2,
-						 (unsigned long) M3, (unsigned long) M4);
-
-						 printf("GYRO raw: gx=%+.2f gy=%+.2f gz=%+.2f\n",
-						 mpu_gyro_read(0) - calibration_const_global_gx , mpu_gyro_read(1) - calibration_const_global_gy , mpu_gyro_read(2) - calibration_const_global_gz );
-
-						 printf("ERR: eR=%+.2f eP=%+.2f eY=%+.2f\n", ErrorRateRoll,
-						 ErrorRatePitch, ErrorRateYaw);
-
-						 printf("PID R: P=%+.2f I=%+.2f D=%+.2f OUT=%+.2f\n",
-						 PRateRoll * PrevErrorRateRoll,
-						 PrevItermRateRoll,
-						 InputRoll - (PRateRoll * PrevErrorRateRoll + PrevItermRateRoll),
-						 InputRoll);
-
-						 printf("PID P: P=%+.2f I=%+.2f D=%+.2f OUT=%+.2f\n",
-						 PRatePitch * PrevErrorRatePitch,
-						 PrevItermRatePitch,
-						 InputPitch - (PRatePitch * PrevErrorRatePitch + PrevItermRatePitch),
-						 InputPitch);
-
-						 printf("PID Y: P=%+.2f I=%+.2f D=%+.2f OUT=%+.2f\n",
-						 PRateYaw * PrevErrorRateYaw,
-						 PrevItermRateYaw,
-						 InputYaw - (PRateYaw * PrevErrorRateYaw + PrevItermRateYaw),
-						 InputYaw);
-
-
-						 printf("MIX raw: M1=%d M2=%d M3=%d M4=%d\n", M1, M2, M3, M4);
-
-						 printf("PWM OUT: TR=%d TL=%d BL=%d BR=%d\n",
-						 M1, M2, M3, M4);
-
-						 printf("CH: "
-						 "0=%4u "
-						 "1=%4u "
-						 "2=%4u "
-						 "3=%4u "
-						 "4=%4u "
-						 "5=%4u "
-						 "6=%4u\r\n", display_channels[0], display_channels[1],
-						 display_channels[2], display_channels[3],
-						 display_channels[4], display_channels[5],
-						 display_channels[6]);
-						 */
-
-						HAL_TIM_Base_Stop(&htim9);
-						pushkar = TIM9->CNT;
-
-					} else if (display_channels[7] < 1300) {
-
-						//desired set point calc - aryan
-						TIM9->CNT = 0;
-						HAL_TIM_Base_Start(&htim9);
-
-						DesiredRateRoll = 0.15 * (display_channels[0] - 1500);
-						DesiredRatePitch = 0.15 * (display_channels[1] - 1500);
-						InputThrottle = display_channels[2];
-						DesiredRateYaw = 0.15 * (display_channels[3] - 1500);
-
-						DesiredRateYaw = -DesiredRateYaw;
-
-						//error calc (desired - current = error oof)
-
-						//hmm
-
-						mpu_get_kalman_angles(&kalman_roll, &kalman_pitch);
-
-						ErrorRateRoll = DesiredRateRoll
-								- (mpu_gyro_read(0)
-										- calibration_const_global_gx); //x
-						ErrorRatePitch = DesiredRatePitch
-								- (mpu_gyro_read(1)
-										- calibration_const_global_gy); //y
-						ErrorRateYaw = DesiredRateYaw
-								- (mpu_gyro_read(2)
-										- calibration_const_global_gz); //z
-
-						//realtime pid mapping - uncomment out for tuning
-
-						PRateRoll_R = mapRCtoPID(display_channels[5]);
-						PRatePitch_R = mapRCtoPID(display_channels[5]);
-
-						IRateRoll_R = mapRCtoPID(display_channels[6]);
-						IRatePitch_R = mapRCtoPID(display_channels[6]);
-
-						/*
-						 DRateRoll_R = mapRCtoPID(display_channels[5]);
-						 DRatePitch_R = mapRCtoPID(display_channels[6]);*/
-
-						//actual pid calculations and value return - aryan
-						pid_equation(ErrorRateRoll, PRateRoll_R, IRateRoll_R,
-								DRateRoll_R, PrevErrorRateRoll,
-								PrevItermRateRoll);
-						InputRoll = PIDReturn[0];
-						PrevErrorRateRoll = PIDReturn[1];
-						PrevItermRateRoll = PIDReturn[2];
-						pid_equation(ErrorRatePitch, PRatePitch_R, IRatePitch_R,
-								DRatePitch_R, PrevErrorRatePitch,
-								PrevItermRatePitch);
-						InputPitch = PIDReturn[0];
-						PrevErrorRatePitch = PIDReturn[1];
-						PrevItermRatePitch = PIDReturn[2];
-						pid_equation(ErrorRateYaw, PRateYaw_R, IRateYaw_R,
-								DRateYaw_R, PrevErrorRateYaw, PrevItermRateYaw);
-						InputYaw = PIDReturn[0];
-						PrevErrorRateYaw = PIDReturn[1];
-						PrevItermRateYaw = PIDReturn[2];
-
-						//debug print
-
-						/*
-						 printf(
-						 "THR=%u ERR[R%+.2f P%+.2f Y%+.2f] PIDOUT[R%+.2f P%+.2f Y%+.2f] MIX[%ld,%ld,%ld,%ld]\n",
-						 display_channels[2], ErrorRateRoll, ErrorRatePitch,
-						 ErrorRateYaw, InputRoll, InputPitch, InputYaw, (long) M1,
-						 (long) M2, (long) M3, (long) M4);
-						 */
-
-						//corresponds to each of the 4 motors and their respective motor mixing formulas - aryan
-						//yaw is reversed, so basically flipping it back - aryan
-						M1 = 1.024f
-								* (InputThrottle - InputRoll - InputPitch
-										- InputYaw);
-						M2 = 1.024f
-								* (InputThrottle - InputRoll + InputPitch
-										+ InputYaw);
-						M3 = 1.024f
-								* (InputThrottle + InputRoll + InputPitch
-										- InputYaw);
-						M4 = 1.024f
-								* (InputThrottle + InputRoll - InputPitch
-										+ InputYaw);
-
-						///debug print
-						/*
-						 printf("THR=%u MIX=[%ld,%ld,%ld,%ld] PID=[R%+.1f P%+.1f Y%+.1f] OUT=[%lu,%lu,%lu,%lu]\n",
-						 display_channels[2],
-						 (long)M1, (long)M2, (long)M3, (long)M4,
-						 InputRoll, InputPitch, InputYaw,
-						 (unsigned long)M1, (unsigned long)M2,
-						 (unsigned long)M3, (unsigned long)M4);
-
-						 printf("GZ raw=%+.2f  GZ cal=%+.2f  ErrorY=%+.2f\n",
-						 mpu_gyro_read(2),
-						 mpu_gyro_read(2) - calibration_const_global_gz,
-						 ErrorRateYaw);
-						 */
-
-						//basically the lowest the throttle can go - aryan
-						if (M1 < ThrottleIdle)
-							M1 = ThrottleIdle;
-						if (M2 < ThrottleIdle)
-							M2 = ThrottleIdle;
-						if (M3 < ThrottleIdle)
-							M3 = ThrottleIdle;
-						if (M4 < ThrottleIdle)
-							M4 = ThrottleIdle;
-
-						// capping maximum m1-4 values - aryan
-
-						if (M1 > 2000)
-							M1 = 1999;
-						if (M2 > 2000)
-							M2 = 1999;
-						if (M3 > 2000)
-							M3 = 1999;
-						if (M4 > 2000)
-							M4 = 1999;
-
-						//whenever 0 throttle issued to remote then cutoff and reset pid  - aryan
-
-						int ThrottleCutOff = 1000;
-						if (display_channels[2] < 1100) {
-							M1 = ThrottleCutOff;
-							M2 = ThrottleCutOff;
-							M3 = ThrottleCutOff;
-							M4 = ThrottleCutOff;
-							reset_pid();
-						}
-
-						//finally send the issued motor power commands to the motors themselves - aryan
-
-						//channel notes on our test setup - aryan
-
-						/*	top right - tim 3 ch 1  -
-						 top left - tim 3 ch 3
-						 bottom right - tim 3 ch 4
-						 bottom left - tim 3 ch 2*/
-
-						set_raw_ccr(M1, 5); // func 4 is m3
-						set_raw_ccr(M4, 7); // func 7 is m4
-						set_raw_ccr(M3, 4);  // func 5 is m1
-						set_raw_ccr(M2, 6); //func 6 is m2
-
-						HAL_TIM_Base_Stop(&htim9);
-						pushkar = TIM9->CNT;
-
-					}
-
-				}
-			} else {
-				osDelay(1);
-			}
 		}
 
+		sample_limit++;
+		display_channels[0] -= roll_offset;
+		display_channels[1] -= pitch_offset;
+
+		if (display_channels[0] > 1495 && display_channels[0] < 1505)
+			display_channels[0] = 1500;
+
+		if (display_channels[1] > 1495 && display_channels[1] < 1505)
+			display_channels[1] = 1500;
+
+		if (display_channels[0] < 1000)
+			display_channels[0] = 1000;
+		if (display_channels[0] > 2000)
+			display_channels[0] = 2000;
+
+		if (display_channels[1] < 1000)
+			display_channels[1] = 1000;
+		if (display_channels[1] > 2000)
+			display_channels[1] = 2000;
+
+		if (arm_flag == 1 && disarm_flag == 0) { //stabilize mode
+
+			if (display_channels[7] > 1900) {
+
+				DesiredAngleRoll = 0.10 * (display_channels[0] - 1500);
+				DesiredAnglePitch = 0.10 * (display_channels[1] - 1500);
+
+				if (DesiredAngleRoll > 20.0f) {
+					DesiredAngleRoll = 20.0f;
+				}
+				if (DesiredAngleRoll < -20.0f) {
+					DesiredAngleRoll = -20.0f;
+				}
+
+				if (DesiredAnglePitch > 20.0f) {
+					DesiredAnglePitch = 20.0f;
+				}
+				if (DesiredAnglePitch < -20.0f) {
+					DesiredAnglePitch = -20.0f;
+				}
+
+				InputThrottle = display_channels[2];
+				DesiredRateYaw = 0.15 * (display_channels[3] - 1500);
+
+				DesiredRateYaw = -DesiredRateYaw;
+
+				//stabilize controller
+				mpu_get_kalman_angles(&kalman_roll, &kalman_pitch);
+
+				ErrorAngleRoll = DesiredAngleRoll - kalman_roll;
+				ErrorAnglePitch = DesiredAnglePitch - kalman_pitch;
+
+				pid_equation(ErrorAngleRoll, PAngleRoll_S, IAngleRoll_S,
+						DAngleRoll_S, PrevErrorAngleRoll, PrevItermAngleRoll);
+				DesiredRateRoll = PIDReturn[0];
+				PrevErrorAngleRoll = PIDReturn[1];
+				PrevItermAngleRoll = PIDReturn[2];
+				pid_equation(ErrorAnglePitch, PAnglePitch_S, IAnglePitch_S,
+						DAnglePitch_S, PrevErrorAnglePitch,
+						PrevItermAnglePitch);
+				DesiredRatePitch = PIDReturn[0];
+				PrevErrorAnglePitch = PIDReturn[1];
+				PrevItermAnglePitch = PIDReturn[2];
+
+				//rate controller
+				ErrorRateRoll = DesiredRateRoll
+						- (mpu_gyro_read(0) - calibration_const_global_gx); //x
+				ErrorRatePitch = DesiredRatePitch
+						- (mpu_gyro_read(1) - calibration_const_global_gy); //y
+				ErrorRateYaw = DesiredRateYaw
+						- (mpu_gyro_read(2) - calibration_const_global_gz); //z
+
+				pid_equation(ErrorRateRoll, PRateRoll_S, IRateRoll_S,
+						DRateRoll_S, PrevErrorRateRoll, PrevItermRateRoll);
+				InputRoll = PIDReturn[0];
+				PrevErrorRateRoll = PIDReturn[1];
+				PrevItermRateRoll = PIDReturn[2];
+				pid_equation(ErrorRatePitch, PRatePitch_S, IRatePitch_S,
+						DRatePitch_S, PrevErrorRatePitch, PrevItermRatePitch);
+				InputPitch = PIDReturn[0];
+				PrevErrorRatePitch = PIDReturn[1];
+				PrevItermRatePitch = PIDReturn[2];
+				pid_equation(ErrorRateYaw, PRateYaw_S, IRateYaw_S, DRateYaw_S,
+						PrevErrorRateYaw, PrevItermRateYaw);
+				InputYaw = PIDReturn[0];
+				PrevErrorRateYaw = PIDReturn[1];
+				PrevItermRateYaw = PIDReturn[2];
+
+				M1 = 1.024f
+						* (InputThrottle - InputRoll - InputPitch - InputYaw);
+				M2 = 1.024f
+						* (InputThrottle - InputRoll + InputPitch + InputYaw);
+				M3 = 1.024f
+						* (InputThrottle + InputRoll + InputPitch - InputYaw);
+				M4 = 1.024f
+						* (InputThrottle + InputRoll - InputPitch + InputYaw);
+
+				M1 = ThrottleIdle;
+				if (M2 < ThrottleIdle)
+					M2 = ThrottleIdle;
+				if (M3 < ThrottleIdle)
+					M3 = ThrottleIdle;
+				if (M4 < ThrottleIdle)
+					M4 = ThrottleIdle;
+
+				if (M1 > 2000)
+					M1 = 1999;
+				if (M2 > 2000)
+					M2 = 1999;
+				if (M3 > 2000)
+					M3 = 1999;
+				if (M4 > 2000)
+					M4 = 1999;
+
+				int ThrottleCutOff = 1000;
+				if (display_channels[2] < 1100) {
+					M1 = ThrottleCutOff;
+					M2 = ThrottleCutOff;
+					M3 = ThrottleCutOff;
+					M4 = ThrottleCutOff;
+					reset_pid();
+				}
+
+				set_raw_ccr(M1, 5);
+				set_raw_ccr(M4, 7);
+				set_raw_ccr(M3, 4);
+				set_raw_ccr(M2, 6);
+
+			} else if (display_channels[7] < 1300) { //rate mode
+
+				DesiredRateRoll = 0.15 * (display_channels[0] - 1500);
+				DesiredRatePitch = 0.15 * (display_channels[1] - 1500);
+				InputThrottle = display_channels[2];
+				DesiredRateYaw = 0.15 * (display_channels[3] - 1500);
+
+				DesiredRateYaw = -DesiredRateYaw;
+
+				mpu_get_kalman_angles(&kalman_roll, &kalman_pitch);
+
+				ErrorRateRoll = DesiredRateRoll
+						- (mpu_gyro_read(0) - calibration_const_global_gx); //x
+				ErrorRatePitch = DesiredRatePitch
+						- (mpu_gyro_read(1) - calibration_const_global_gy); //y
+				ErrorRateYaw = DesiredRateYaw
+						- (mpu_gyro_read(2) - calibration_const_global_gz); //z
+
+				PRateRoll_R = mapRCtoPID(display_channels[5]);
+				PRatePitch_R = mapRCtoPID(display_channels[5]);
+
+				IRateRoll_R = mapRCtoPID(display_channels[6]);
+				IRatePitch_R = mapRCtoPID(display_channels[6]);
+
+				pid_equation(ErrorRateRoll, PRateRoll_R, IRateRoll_R,
+						DRateRoll_R, PrevErrorRateRoll, PrevItermRateRoll);
+				InputRoll = PIDReturn[0];
+				PrevErrorRateRoll = PIDReturn[1];
+				PrevItermRateRoll = PIDReturn[2];
+				pid_equation(ErrorRatePitch, PRatePitch_R, IRatePitch_R,
+						DRatePitch_R, PrevErrorRatePitch, PrevItermRatePitch);
+				InputPitch = PIDReturn[0];
+				PrevErrorRatePitch = PIDReturn[1];
+				PrevItermRatePitch = PIDReturn[2];
+				pid_equation(ErrorRateYaw, PRateYaw_R, IRateYaw_R, DRateYaw_R,
+						PrevErrorRateYaw, PrevItermRateYaw);
+				InputYaw = PIDReturn[0];
+				PrevErrorRateYaw = PIDReturn[1];
+				PrevItermRateYaw = PIDReturn[2];
+
+				M1 = 1.024f
+						* (InputThrottle - InputRoll - InputPitch - InputYaw);
+				M2 = 1.024f
+						* (InputThrottle - InputRoll + InputPitch + InputYaw);
+				M3 = 1.024f
+						* (InputThrottle + InputRoll + InputPitch - InputYaw);
+				M4 = 1.024f
+						* (InputThrottle + InputRoll - InputPitch + InputYaw);
+
+				if (M1 < ThrottleIdle)
+					M1 = ThrottleIdle;
+				if (M2 < ThrottleIdle)
+					M2 = ThrottleIdle;
+				if (M3 < ThrottleIdle)
+					M3 = ThrottleIdle;
+				if (M4 < ThrottleIdle)
+					M4 = ThrottleIdle;
+
+				// capping maximum m1-4 values - aryan
+
+				if (M1 > 2000)
+					M1 = 1999;
+				if (M2 > 2000)
+					M2 = 1999;
+				if (M3 > 2000)
+					M3 = 1999;
+				if (M4 > 2000)
+					M4 = 1999;
+
+				int ThrottleCutOff = 1000;
+				if (display_channels[2] < 1100) {
+					M1 = ThrottleCutOff;
+					M2 = ThrottleCutOff;
+					M3 = ThrottleCutOff;
+					M4 = ThrottleCutOff;
+					reset_pid();
+				}
+
+				set_raw_ccr(M1, 5); // func 4 is m3
+				set_raw_ccr(M4, 7); // func 7 is m4
+				set_raw_ccr(M3, 4);  // func 5 is m1
+				set_raw_ccr(M2, 6); //func 6 is m2
+
+			}
+
+		}
+
+		//for debugging on MCUViewer and For giving time exceeded warnings in mavlink
+		now = TIM9->CNT;
+		dt_n = now - last;
+		last = now;
+
 	}
+
 	/* USER CODE END quad_mode */
 }
 
@@ -1813,34 +1722,62 @@ void telemetry_task(void *argument) {
 
 		else if (arm_flag == 0 && disarm_flag == 1) {
 
-			mpu_get_kalman_angles(&kalman_roll, &kalman_pitch);
+			//mpu_get_kalman_angles(&kalman_roll, &kalman_pitch);
+			g_global_x = mpu_gyro_read(0);
+			g_global_y = mpu_gyro_read(1);
+			g_global_z = mpu_gyro_read(2);
+			a_global_x = mpu_accel_read(0);
+			a_global_y = mpu_accel_read(1);
+			a_global_z = mpu_accel_read(2);
 			alt_ext = altitude_calc();
 			send_heartbeat_disarmed();
 			send_attitude();
-			send_vfr_hud();
 			send_scaled_pressure();
 			send_global_position_int();
 			send_battery_info();
-			send_status_text(MAV_SEVERITY_INFO, "Barometer ready");
 			send_status_text(MAV_SEVERITY_INFO, "DISARMED!");
-
 
 		}
 
-		//	printf("P Roll is %f and I  pitch is %f\n", PRateRoll_R, IRateRoll_R);
-		/*printf("MPU readings: gx=%+.2f gy=%+.2f gz=%+.2f\n",
-		 mpu_gyro_read(0) - calibration_const_global_gx,
-		 mpu_gyro_read(1) - calibration_const_global_gy,
-		 mpu_gyro_read(2) - calibration_const_global_gz);
+		task_1_running = 2;
+		osDelay(15);
+		task_1_running = 0;
+		osDelay(15);
 
-		 printf("BMP altitude is %f\n", altitude_calc());
-
-
-		 */
-
-		osDelay(30);
 	}
 	/* USER CODE END telemetry_task */
+}
+
+/* USER CODE BEGIN Header_fw_mode */
+/**
+ * @brief Function implementing the FixedWingTask thread.
+ * @param argument: Not used
+ * @retval None
+ */
+/* USER CODE END Header_fw_mode */
+void fw_mode(void *argument) {
+	/* USER CODE BEGIN fw_mode */
+	/* Infinite loop */
+	for (;;) {
+		osDelay(1);
+	}
+	/* USER CODE END fw_mode */
+}
+
+/* USER CODE BEGIN Header_vtol_task */
+/**
+ * @brief Function implementing the VtolMode thread.
+ * @param argument: Not used
+ * @retval None
+ */
+/* USER CODE END Header_vtol_task */
+void vtol_task(void *argument) {
+	/* USER CODE BEGIN vtol_task */
+	/* Infinite loop */
+	for (;;) {
+		osDelay(1);
+	}
+	/* USER CODE END vtol_task */
 }
 
 /**
@@ -1860,6 +1797,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) {
 	}
 	/* USER CODE BEGIN Callback 1 */
 	if (htim->Instance == TIM10) {
+		tim_flag = 1;
 		osSemaphoreRelease(timer_semHandle);
 
 	}

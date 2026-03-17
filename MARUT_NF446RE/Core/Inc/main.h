@@ -67,12 +67,36 @@ void Error_Handler(void);
 #define USART_RX_GPIO_Port GPIOA
 #define LD2_Pin GPIO_PIN_5
 #define LD2_GPIO_Port GPIOA
+#define MOT1_Pin GPIO_PIN_6
+#define MOT1_GPIO_Port GPIOA
+#define MOT2_Pin GPIO_PIN_7
+#define MOT2_GPIO_Port GPIOA
+#define MOT3_Pin GPIO_PIN_0
+#define MOT3_GPIO_Port GPIOB
+#define MOT4_Pin GPIO_PIN_1
+#define MOT4_GPIO_Port GPIOB
+#define LED_1_Pin GPIO_PIN_12
+#define LED_1_GPIO_Port GPIOB
+#define LED_2_Pin GPIO_PIN_13
+#define LED_2_GPIO_Port GPIOB
+#define LED_3_Pin GPIO_PIN_14
+#define LED_3_GPIO_Port GPIOB
+#define BMP_SDA_Pin GPIO_PIN_9
+#define BMP_SDA_GPIO_Port GPIOC
+#define BMP_SCL_Pin GPIO_PIN_8
+#define BMP_SCL_GPIO_Port GPIOA
 #define TMS_Pin GPIO_PIN_13
 #define TMS_GPIO_Port GPIOA
 #define TCK_Pin GPIO_PIN_14
 #define TCK_GPIO_Port GPIOA
 #define SWO_Pin GPIO_PIN_3
 #define SWO_GPIO_Port GPIOB
+#define RC_IN_Pin GPIO_PIN_6
+#define RC_IN_GPIO_Port GPIOB
+#define MPU_SCL_Pin GPIO_PIN_8
+#define MPU_SCL_GPIO_Port GPIOB
+#define MPU_SDA_Pin GPIO_PIN_9
+#define MPU_SDA_GPIO_Port GPIOB
 
 /* USER CODE BEGIN Private defines */
 

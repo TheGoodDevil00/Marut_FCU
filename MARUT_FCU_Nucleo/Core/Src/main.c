@@ -61,6 +61,7 @@ TIM_HandleTypeDef htim4;
 
 UART_HandleTypeDef huart1;
 UART_HandleTypeDef huart2;
+UART_HandleTypeDef huart3;
 UART_HandleTypeDef huart6;
 
 /* Definitions for defaultTask */
@@ -186,6 +187,7 @@ static void MX_TIM2_Init(void);
 static void MX_TIM3_Init(void);
 static void MX_USART2_UART_Init(void);
 static void MX_ADC1_Init(void);
+static void MX_USART3_UART_Init(void);
 void servo_mapping(void *argument);
 void telemetry_task(void *argument);
 void arm_disarm(void *argument);
@@ -200,7 +202,7 @@ void arm_disarm(void *argument);
 PUTCHAR_PROTOTYPE {
 	/* Place your implementation of fputc here */
 	/* e.g. write a character to the USART1 and Loop until the end of transmission */
-	HAL_UART_Transmit(&huart2, (uint8_t*) &ch, 1, 0xFFFF);
+	HAL_UART_Transmit(&huart1, (uint8_t*) &ch, 1, 0xFFFF);
 
 	return ch;
 }
@@ -368,6 +370,7 @@ int main(void)
   MX_TIM3_Init();
   MX_USART2_UART_Init();
   MX_ADC1_Init();
+  MX_USART3_UART_Init();
   /* USER CODE BEGIN 2 */
 
   /* USER CODE END 2 */
@@ -828,6 +831,39 @@ static void MX_USART2_UART_Init(void)
 }
 
 /**
+  * @brief USART3 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_USART3_UART_Init(void)
+{
+
+  /* USER CODE BEGIN USART3_Init 0 */
+
+  /* USER CODE END USART3_Init 0 */
+
+  /* USER CODE BEGIN USART3_Init 1 */
+
+  /* USER CODE END USART3_Init 1 */
+  huart3.Instance = USART3;
+  huart3.Init.BaudRate = 115200;
+  huart3.Init.WordLength = UART_WORDLENGTH_8B;
+  huart3.Init.StopBits = UART_STOPBITS_1;
+  huart3.Init.Parity = UART_PARITY_NONE;
+  huart3.Init.Mode = UART_MODE_TX_RX;
+  huart3.Init.HwFlowCtl = UART_HWCONTROL_NONE;
+  huart3.Init.OverSampling = UART_OVERSAMPLING_16;
+  if (HAL_UART_Init(&huart3) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN USART3_Init 2 */
+
+  /* USER CODE END USART3_Init 2 */
+
+}
+
+/**
   * @brief USART6 Initialization Function
   * @param None
   * @retval None
@@ -868,8 +904,8 @@ static void MX_USART6_UART_Init(void)
 static void MX_GPIO_Init(void)
 {
   GPIO_InitTypeDef GPIO_InitStruct = {0};
-/* USER CODE BEGIN MX_GPIO_Init_1 */
-/* USER CODE END MX_GPIO_Init_1 */
+  /* USER CODE BEGIN MX_GPIO_Init_1 */
+  /* USER CODE END MX_GPIO_Init_1 */
 
   /* GPIO Ports Clock Enable */
   __HAL_RCC_GPIOC_CLK_ENABLE();
@@ -903,8 +939,8 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
 
-/* USER CODE BEGIN MX_GPIO_Init_2 */
-/* USER CODE END MX_GPIO_Init_2 */
+  /* USER CODE BEGIN MX_GPIO_Init_2 */
+  /* USER CODE END MX_GPIO_Init_2 */
 }
 
 /* USER CODE BEGIN 4 */
@@ -1014,11 +1050,11 @@ void telemetry_task(void *argument)
 	/* Infinite loop */
 	HAL_UART_Receive_IT(&huart1, &rxData, 1);
 	mpu_init();
-	printf("Init ok mpu lol/n");
+	printf("Init ok mpu lol\n");
 	qmc_init();
-	printf("Init ok qmc/n");
+	printf("Init ok qmc\n");
 	bmp_i2c_setup();
-	printf("Init ok bmp/n");
+	printf("Init ok bmp\n");
 
 	//HAL_ADC_Start_IT(&hadc1);
 
@@ -1029,9 +1065,7 @@ void telemetry_task(void *argument)
 
 			send_heartbeat_armed();
 			send_attitude();
-			send_heartbeat_armed();
 			send_global_position_int();
-			send_heartbeat_armed();
 			send_battery_info();
 			HAL_GPIO_WritePin(GPIOA, GPIO_PIN_8, 1);
 
@@ -1040,9 +1074,7 @@ void telemetry_task(void *argument)
 
 			send_heartbeat_disarmed();
 			send_attitude();
-			send_heartbeat_disarmed();
 			send_global_position_int();
-			send_heartbeat_disarmed();
 			send_battery_info();
 			HAL_GPIO_WritePin(GPIOA, GPIO_PIN_8, 0);
 
@@ -1102,7 +1134,8 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
   /* USER CODE BEGIN Callback 0 */
 
   /* USER CODE END Callback 0 */
-  if (htim->Instance == TIM14) {
+  if (htim->Instance == TIM14)
+  {
     HAL_IncTick();
   }
   /* USER CODE BEGIN Callback 1 */
@@ -1123,8 +1156,7 @@ void Error_Handler(void)
 		}
   /* USER CODE END Error_Handler_Debug */
 }
-
-#ifdef  USE_FULL_ASSERT
+#ifdef USE_FULL_ASSERT
 /**
   * @brief  Reports the name of the source file and the source line number
   *         where the assert_param error has occurred.
