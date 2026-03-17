@@ -1762,7 +1762,7 @@ void fw_mode(void *argument) {
 	/* USER CODE BEGIN fw_mode */
 	/* Infinite loop */
 	for (;;) {
-		if (mode_flag == 0) {
+
 			osSemaphoreAcquire(timer_semHandle, osWaitForever);
 
 							if (display_channels[6] > 1800){
@@ -1892,7 +1892,7 @@ void fw_mode(void *argument) {
 						
 			}
 
-		}
+		
 		osDelay(1);
 	}
 	/* USER CODE END fw_mode */
