@@ -352,7 +352,8 @@ void quad_mode(void *argument);
 void telemetry_task(void *argument);
 void fw_mode(void *argument);
 void vtol_task(void *argument);
-float range_converter(uint16_t OldValue,uint16_t OldMin,uint16_t OldMax,float NewMin,float NewMax);
+float range_converter(uint16_t OldValue, uint16_t OldMin, uint16_t OldMax,
+		float NewMin, float NewMax);
 
 /* USER CODE BEGIN PFP */
 
@@ -522,15 +523,15 @@ void set_raw_ccr(int ccr_val, int channel) // use this instead , cofnigured for 
 
 void pid_equation(float Error, float P, float I, float D, float PrevError,
 		float PrevIterm) {
-	float Pterm = P * Error; // - simple multiplication of p term with error
-	float Iterm = PrevIterm + I * (Error + PrevError) * 0.0025 / 2; //trapezoidal integration - aryan
-	if (Iterm > 400) // i term negative and positive clamp - aryan
+	float Pterm = P * Error;
+	float Iterm = PrevIterm + I * (Error + PrevError) * 0.0025 / 2;
+	if (Iterm > 400)
 		Iterm = 400;
 	else if (Iterm < -400)
 		Iterm = -400;
-	float Dterm = D * (Error - PrevError) / 0.0025; // - trapezoidal derivative - aryan
+	float Dterm = D * (Error - PrevError) / 0.0025f;
 	float PIDOutput = Pterm + Iterm + Dterm;
-	if (PIDOutput > 400) // pid output limiter, low for laggier response, higher for faster response
+	if (PIDOutput > 400)
 		PIDOutput = 400;
 	else if (PIDOutput < -400)
 		PIDOutput = -400;
@@ -1310,7 +1311,9 @@ void arm_disarm(void *argument) {
 	/* Infinite loop */
 	for (;;) {
 
-		if (display_channels[4] > 1900 && ioce != 1) {
+		if (display_channels[4] > 1900 && ioce != 1 &&
+		    display_channels[2] < 1100)
+		{
 			joce = 0;
 
 			arm_flag = 1;
@@ -1575,7 +1578,8 @@ void quad_mode(void *argument) {
 				M4 = 1.024f
 						* (InputThrottle + InputRoll - InputPitch + InputYaw);
 
-				M1 = ThrottleIdle;
+				if (M1 < ThrottleIdle)
+					M1 = ThrottleIdle;
 				if (M2 < ThrottleIdle)
 					M2 = ThrottleIdle;
 				if (M3 < ThrottleIdle)
@@ -1593,7 +1597,7 @@ void quad_mode(void *argument) {
 					M4 = 1999;
 
 				int ThrottleCutOff = 1000;
-				if (display_channels[2] < 1100) {
+				if (display_channels[2] < 1050) {
 					M1 = ThrottleCutOff;
 					M2 = ThrottleCutOff;
 					M3 = ThrottleCutOff;
@@ -1676,7 +1680,7 @@ void quad_mode(void *argument) {
 					M4 = 1999;
 
 				int ThrottleCutOff = 1000;
-				if (display_channels[2] < 1100) {
+				if (display_channels[2] < 1050) {
 					M1 = ThrottleCutOff;
 					M2 = ThrottleCutOff;
 					M3 = ThrottleCutOff;
@@ -1729,13 +1733,13 @@ void telemetry_task(void *argument) {
 
 		else if (arm_flag == 0 && disarm_flag == 1) {
 
-			//mpu_get_kalman_angles(&kalman_roll, &kalman_pitch);
-			g_global_x = mpu_gyro_read(0);
-			g_global_y = mpu_gyro_read(1);
-			g_global_z = mpu_gyro_read(2);
-			a_global_x = mpu_accel_read(0);
-			a_global_y = mpu_accel_read(1);
-			a_global_z = mpu_accel_read(2);
+			mpu_get_kalman_angles(&kalman_roll, &kalman_pitch);
+			/*	g_global_x = mpu_gyro_read(0);
+			 g_global_y = mpu_gyro_read(1);
+			 g_global_z = mpu_gyro_read(2);
+			 a_global_x = mpu_accel_read(0);
+			 a_global_y = mpu_accel_read(1);
+			 a_global_z = mpu_accel_read(2);*/
 			alt_ext = altitude_calc();
 			send_heartbeat_disarmed();
 			send_attitude();
@@ -1765,114 +1769,97 @@ void telemetry_task(void *argument) {
 void fw_mode(void *argument) {
 	/* USER CODE BEGIN fw_mode */
 	/* Infinite loop */
-	float Gx ,Gy;
+	float Gx, Gy;
 	float left_elevon;
 	float right_elevon;
+
 	float throttle;
 	for (;;) {
 
-			osSemaphoreAcquire(timer_semHandle, osWaitForever);
+		osSemaphoreAcquire(timer_semHandle, osWaitForever);
 
-							if (display_channels[6] > 1800){
+		if (display_channels[6] > 1900) {
 
-								mpu_get_kalman_angles(&kalman_roll, &kalman_pitch);
+			mpu_get_kalman_angles(&kalman_roll, &kalman_pitch);
 
-								DesiredAngleRoll  = 0.05f * (display_channels[0] - 1500);
-								DesiredAnglePitch = 0.07f * (display_channels[1] - 1500);
+			DesiredAngleRoll = 0.05f * (display_channels[0] - 1500);
+			DesiredAnglePitch = 0.07f * (display_channels[1] - 1500);
 
+			ErrorAngleRoll = DesiredAngleRoll - kalman_roll;
+			ErrorAnglePitch = DesiredAnglePitch - kalman_pitch;
 
-								ErrorAngleRoll = DesiredAngleRoll - kalman_roll;
-								ErrorAnglePitch = DesiredAnglePitch - kalman_pitch;
+			DesiredRateRoll = PAngleRoll_S * ErrorAngleRoll;
+			DesiredRatePitch = PAnglePitch_S * ErrorAnglePitch;
 
-
-
-								DesiredRateRoll  = PAngleRoll_S  * ErrorAngleRoll;
-								DesiredRatePitch = PAnglePitch_S * ErrorAnglePitch;
-
-								if(DesiredRateRoll > 200.0f){
-									DesiredRateRoll = 199.9f;
-																}
-								if(DesiredRateRoll < -200.0f){
-										DesiredRateRoll = -199.9f;
-									}
-
-								if(DesiredRatePitch > 200.0f){
-											DesiredRatePitch = 199.9f;
-								}
-								if(DesiredRatePitch < -200.0f){
-										DesiredRatePitch = -199.9f;
-							}
-
-
-
-								Gx = mpu_gyro_read(0) - calibration_const_global_gx;
-								Gy = mpu_gyro_read(1) - calibration_const_global_gy;
-
-								ErrorRateRoll  = DesiredRateRoll  - Gx;
-								ErrorRatePitch = DesiredRatePitch - Gy;
-
-								pid_equation(ErrorRateRoll,
-								             PRateRoll_R, 0.0f, DRateRoll_R,
-								             PrevErrorRateRoll, PrevItermRateRoll);
-
-								InputRoll = PIDReturn[0];
-								PrevErrorRateRoll  = PIDReturn[1];
-								PrevItermRateRoll  = PIDReturn[2];
-
-								pid_equation(ErrorRatePitch,
-								             PRatePitch_R, 0.0f, DRatePitch_R,
-								             PrevErrorRatePitch, PrevItermRatePitch);
-
-								InputPitch = PIDReturn[0];
-								PrevErrorRatePitch  = PIDReturn[1];
-								PrevItermRatePitch  = PIDReturn[2];
-
-								elevon_left  = 1500 + (EL_L_DIR * (InputPitch + InputRoll));
-								elevon_right = 1500 + (EL_R_DIR * (InputPitch - InputRoll));
-
-								// Clamp
-								if (elevon_left > 2000)  elevon_left = 1999;
-								if (elevon_left < 1000)  elevon_left = 1001;
-
-								if (elevon_right > 2000) elevon_right = 1999;
-								if (elevon_right < 1000) elevon_right = 1001;
-
-								set_raw_ccr(elevon_left,  4);
-								set_raw_ccr(elevon_right, 5);
-
-								InputThrottle = display_channels[2];
-								set_raw_ccr(InputThrottle, 6);
-
-
-
-						
+			if (DesiredRateRoll > 200.0f) {
+				DesiredRateRoll = 199.9f;
 			}
-			else
-			{
-				//1000 - 2000 us to 0 to 180
-				// 5% 1000ms 10% 2000ms
-				//elevon_left = display_channel[0];
-				//elevon_right = display_channel[2];
-
-
-				// left,right,throttle
-				left_elevon=range_converter(display_channels[0],1000,2000,5,10);
-				right_elevon=range_converter(display_channels[1],1000,2000,5,10);
-				throttle=range_converter(display_channels[2],1000,2000,5,10);
-				// 											    TIM
-				// left			channel 1						 3
-				// right		channel 2						 3
-				// throttle	    channel 3                        3
-				set_raw_ccr(throttle, 6);
-				set_raw_ccr(left_elevon, 4);
-				set_raw_ccr(right_elevon,5);
-
-
-
+			if (DesiredRateRoll < -200.0f) {
+				DesiredRateRoll = -199.9f;
 			}
 
-		
-		
+			if (DesiredRatePitch > 200.0f) {
+				DesiredRatePitch = 199.9f;
+			}
+			if (DesiredRatePitch < -200.0f) {
+				DesiredRatePitch = -199.9f;
+			}
+
+			Gx = mpu_gyro_read(0) - calibration_const_global_gx;
+			Gy = mpu_gyro_read(1) - calibration_const_global_gy;
+
+			ErrorRateRoll = DesiredRateRoll - Gx;
+			ErrorRatePitch = DesiredRatePitch - Gy;
+
+			pid_equation(ErrorRateRoll, PRateRoll_R, 0.0f, DRateRoll_R,
+					PrevErrorRateRoll, PrevItermRateRoll);
+
+			InputRoll = PIDReturn[0];
+			PrevErrorRateRoll = PIDReturn[1];
+			PrevItermRateRoll = PIDReturn[2];
+
+			pid_equation(ErrorRatePitch, PRatePitch_R, 0.0f, DRatePitch_R,
+					PrevErrorRatePitch, PrevItermRatePitch);
+
+			InputPitch = PIDReturn[0];
+			PrevErrorRatePitch = PIDReturn[1];
+			PrevItermRatePitch = PIDReturn[2];
+
+			elevon_left = 1500 + (EL_L_DIR * (InputPitch + InputRoll));
+			elevon_right = 1500 + (EL_R_DIR * (InputPitch - InputRoll));
+
+			// Clamp
+			if (elevon_left > 2000)
+				elevon_left = 1999;
+			if (elevon_left < 1000)
+				elevon_left = 1001;
+
+			if (elevon_right > 2000)
+				elevon_right = 1999;
+			if (elevon_right < 1000)
+				elevon_right = 1001;
+
+			set_raw_ccr(elevon_left, 4);
+			set_raw_ccr(elevon_right, 5);
+
+			InputThrottle = display_channels[2];
+			set_raw_ccr(InputThrottle, 6);
+
+
+		} else if (display_channels[7] < 1300) {
+
+			left_elevon = range_converter(display_channels[0], 1000, 2000, 5,
+					10);
+			right_elevon = range_converter(display_channels[1], 1000, 2000, 5,
+					10);
+			throttle = range_converter(display_channels[2], 1000, 2000, 5, 10);
+
+			set_raw_ccr(throttle, 6);
+			set_raw_ccr(left_elevon, 4);
+			set_raw_ccr(right_elevon, 5);
+
+		}
+
 	}
 	/* USER CODE END fw_mode */
 }
@@ -1893,18 +1880,19 @@ void vtol_task(void *argument) {
 	/* USER CODE END vtol_task */
 }
 
-float range_converter(uint16_t OldValue,uint16_t OldMin,uint16_t OldMax,float NewMin,float NewMax)
-{
-    if (OldMax == OldMin) {
-        return NewMin;  // avoid division by zero
-    }
+float range_converter(uint16_t OldValue, uint16_t OldMin, uint16_t OldMax,
+		float NewMin, float NewMax) {
+	if (OldMax == OldMin) {
+		return NewMin;  // avoid division by zero
+	}
 
-    float OldRange = (float)(OldMax - OldMin);
-    float NewRange = (NewMax - NewMin);
+	float OldRange = (float) (OldMax - OldMin);
+	float NewRange = (NewMax - NewMin);
 
-    float NewValue = (((float)(OldValue - OldMin) * NewRange) / OldRange) + NewMin;
+	float NewValue = (((float) (OldValue - OldMin) * NewRange) / OldRange)
+			+ NewMin;
 
-    return NewValue;
+	return NewValue;
 }
 
 /**
