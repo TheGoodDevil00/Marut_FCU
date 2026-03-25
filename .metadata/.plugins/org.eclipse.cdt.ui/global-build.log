@@ -740,3 +740,10 @@ Finished building: default.size.stdout
  
 Finished building: MARUT_NF446RE.list
  
+12:16:47 **** Build of configuration Debug for project MARUT_NF446RE ****
+make -j16 all 
+arm-none-eabi-size  MARUT_NF446RE.elf 
+   text	   data	    bss	    dec	    hex	filename
+  82320	    640	  84808	 167768	  28f58	MARUT_NF446RE.elf
+Finished building: default.size.stdout
+ 
