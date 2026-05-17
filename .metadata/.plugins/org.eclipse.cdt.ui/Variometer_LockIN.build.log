@@ -1,0 +1,10 @@
+13:37:01 **** Build of configuration Debug for project Variometer_LockIN ****
+make -j16 all 
+arm-none-eabi-size  Variometer_LockIN.elf 
+   text	   data	    bss	    dec	    hex	filename
+  16668	     12	   1924	  18604	   48ac	Variometer_LockIN.elf
+Finished building: default.size.stdout
+ 
+
+13:37:02 Build Finished. 0 errors, 0 warnings. (took 533ms)
+

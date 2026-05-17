@@ -1,8 +1,16 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <section name="Workbench">
 	<item key="hasShownOverlayPopupBefore" value="true"/>
-	<item key="replaceBarOpen" value="false"/>
+	<item key="replaceBarOpen" value="true"/>
 	<list key="searchhistory">
+		<item value="hi2c3"/>
+		<item value="pushkar"/>
+		<item value="hi2c2"/>
+		<item value="hi2c1"/>
+		<item value="&amp;hi2c1"/>
+		<item value="cv"/>
+		<item value="vz"/>
+		<item value="dbg"/>
 		<item value="mode_flag"/>
 		<item value="printf"/>
 		<item value="dt"/>
@@ -10,6 +18,12 @@
 		<item value="io"/>
 		<item value="send_pa"/>
 		<item value="send_parse"/>
+	</list>
+	<list key="replacehistory">
+		<item value="hi2c1"/>
+		<item value="hi2c2"/>
+		<item value="hi2c3"/>
+		<item value="&amp;hi2c2"/>
 	</list>
 	<section name="org.eclipse.ui.texteditor.GotoLineAction$GotoLineDialog_dialogBounds">
 		<item key="DIALOG_X_ORIGIN" value="646"/>

@@ -1,4 +1,4 @@
-15:21:07 **** Build of configuration Debug for project FCU_Quad_StabilizeMode ****
+13:36:55 **** Build of configuration Debug for project FCU_Quad_StabilizeMode ****
 make -j16 all 
 arm-none-eabi-size  FCU_Quad_StabilizeMode.elf 
    text	   data	    bss	    dec	    hex	filename
@@ -6,5 +6,5 @@ arm-none-eabi-size  FCU_Quad_StabilizeMode.elf
 Finished building: default.size.stdout
  
 
-15:21:07 Build Finished. 0 errors, 0 warnings. (took 442ms)
+13:36:55 Build Finished. 0 errors, 0 warnings. (took 416ms)
 

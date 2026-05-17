@@ -1,4 +1,4 @@
-12:16:47 **** Build of configuration Debug for project MARUT_NF446RE ****
+13:36:57 **** Build of configuration Debug for project MARUT_NF446RE ****
 make -j16 all 
 arm-none-eabi-size  MARUT_NF446RE.elf 
    text	   data	    bss	    dec	    hex	filename
@@ -6,5 +6,5 @@ arm-none-eabi-size  MARUT_NF446RE.elf
 Finished building: default.size.stdout
  
 
-12:16:49 Build Finished. 0 errors, 0 warnings. (took 1s.48ms)
+13:36:58 Build Finished. 0 errors, 0 warnings. (took 654ms)
 

@@ -1,16 +1,10 @@
-15:21:05 **** Build of configuration Debug for project FCU_Quad_RateMode ****
+13:36:54 **** Build of configuration Debug for project FCU_Quad_RateMode ****
 make -j16 all 
-arm-none-eabi-gcc -o "FCU_Quad_RateMode.elf" @"objects.list"   -mcpu=cortex-m4 -T"C:\Embedded stuff\Marut_workspace_stm32\FCU_Quad_RateMode\STM32F411CCUX_FLASH.ld" --specs=nosys.specs -Wl,-Map="FCU_Quad_RateMode.map" -Wl,--gc-sections -static --specs=nano.specs -mfpu=fpv4-sp-d16 -mfloat-abi=hard -mthumb -u _printf_float -u _scanf_float -Wl,--start-group -lc -lm -Wl,--end-group
-Finished building target: FCU_Quad_RateMode.elf
- 
 arm-none-eabi-size  FCU_Quad_RateMode.elf 
-arm-none-eabi-objdump -h -S FCU_Quad_RateMode.elf  > "FCU_Quad_RateMode.list"
    text	   data	    bss	    dec	    hex	filename
   46512	    576	   2592	  49680	   c210	FCU_Quad_RateMode.elf
 Finished building: default.size.stdout
  
-Finished building: FCU_Quad_RateMode.list
- 
 
-15:21:07 Build Finished. 0 errors, 0 warnings. (took 1s.786ms)
+13:36:55 Build Finished. 0 errors, 0 warnings. (took 538ms)
 

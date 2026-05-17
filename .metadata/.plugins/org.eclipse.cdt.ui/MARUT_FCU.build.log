@@ -1,10 +1,20 @@
-15:21:08 **** Build of configuration Debug for project MARUT_FCU ****
+13:55:31 **** Incremental Build of configuration Debug for project MARUT_FCU ****
 make -j16 all 
+arm-none-eabi-gcc "../Core/Src/main.c" -mcpu=cortex-m4 -std=gnu11 -g3 -DDEBUG -DUSE_HAL_DRIVER -DSTM32F411xE -c -I../Core/Inc -I../Drivers/STM32F4xx_HAL_Driver/Inc -I../Drivers/STM32F4xx_HAL_Driver/Inc/Legacy -I../Drivers/CMSIS/Device/ST/STM32F4xx/Include -I../Drivers/CMSIS/Include -I../Middlewares/Third_Party/FreeRTOS/Source/include -I../Middlewares/Third_Party/FreeRTOS/Source/CMSIS_RTOS_V2 -I../Middlewares/Third_Party/FreeRTOS/Source/portable/GCC/ARM_CM4F -O0 -ffunction-sections -fdata-sections -Wall -fstack-usage -fcyclomatic-complexity -MMD -MP -MF"Core/Src/main.d" -MT"Core/Src/main.o" --specs=nano.specs -mfpu=fpv4-sp-d16 -mfloat-abi=hard -mthumb -o "Core/Src/main.o"
+arm-none-eabi-gcc -o "MARUT_FCU.elf" @"objects.list"   -mcpu=cortex-m4 -T"C:\Embedded stuff\Marut_workspace_stm32\MARUT_FCU\STM32F411CCUX_FLASH.ld" --specs=nosys.specs -Wl,-Map="MARUT_FCU.map" -Wl,--gc-sections -static --specs=nano.specs -mfpu=fpv4-sp-d16 -mfloat-abi=hard -mthumb -u _printf_float -u _scanf_float -Wl,--start-group -lc -lm -Wl,--end-group
+Finished building target: MARUT_FCU.elf
+ 
 arm-none-eabi-size  MARUT_FCU.elf 
+arm-none-eabi-objdump -h -S MARUT_FCU.elf  > "MARUT_FCU.list"
    text	   data	    bss	    dec	    hex	filename
-  80732	    636	  85396	 166764	  28b6c	MARUT_FCU.elf
+  53996	    548	   4172	  58716	   e55c	MARUT_FCU.elf
+arm-none-eabi-objcopy  -O ihex MARUT_FCU.elf  "MARUT_FCU.hex"
 Finished building: default.size.stdout
  
+Finished building: MARUT_FCU.hex
+ 
+Finished building: MARUT_FCU.list
+ 
 
-15:21:08 Build Finished. 0 errors, 0 warnings. (took 927ms)
+13:55:32 Build Finished. 0 errors, 0 warnings. (took 1s.13ms)
 

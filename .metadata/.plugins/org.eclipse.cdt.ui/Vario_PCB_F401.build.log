@@ -1,0 +1,17 @@
+17:52:34 **** Incremental Build of configuration Debug for project Vario_PCB_F401 ****
+make -j16 all 
+arm-none-eabi-gcc "../Core/Src/bmp280.c" -mcpu=cortex-m4 -std=gnu11 -g3 -DDEBUG -DUSE_HAL_DRIVER -DSTM32F401xC -c -I../Core/Inc -I../Drivers/STM32F4xx_HAL_Driver/Inc -I../Drivers/STM32F4xx_HAL_Driver/Inc/Legacy -I../Middlewares/Third_Party/FreeRTOS/Source/include -I../Middlewares/Third_Party/FreeRTOS/Source/CMSIS_RTOS_V2 -I../Middlewares/Third_Party/FreeRTOS/Source/portable/GCC/ARM_CM4F -I../Drivers/CMSIS/Device/ST/STM32F4xx/Include -I../Drivers/CMSIS/Include -O0 -ffunction-sections -fdata-sections -Wall -fstack-usage -fcyclomatic-complexity -MMD -MP -MF"Core/Src/bmp280.d" -MT"Core/Src/bmp280.o" --specs=nano.specs -mfpu=fpv4-sp-d16 -mfloat-abi=hard -mthumb -o "Core/Src/bmp280.o"
+arm-none-eabi-gcc -o "Vario_PCB_F401.elf" @"objects.list"   -mcpu=cortex-m4 -T"C:\Embedded stuff\Marut_workspace_stm32\Vario_PCB_F401\STM32F401CCUX_FLASH.ld" --specs=nosys.specs -Wl,-Map="Vario_PCB_F401.map" -Wl,--gc-sections -static --specs=nano.specs -mfpu=fpv4-sp-d16 -mfloat-abi=hard -mthumb -u _printf_float -u _scanf_float -Wl,--start-group -lc -lm -Wl,--end-group
+Finished building target: Vario_PCB_F401.elf
+ 
+arm-none-eabi-size  Vario_PCB_F401.elf 
+arm-none-eabi-objdump -h -S Vario_PCB_F401.elf  > "Vario_PCB_F401.list"
+   text	   data	    bss	    dec	    hex	filename
+  65232	    544	  58208	 123984	  1e450	Vario_PCB_F401.elf
+Finished building: default.size.stdout
+ 
+Finished building: Vario_PCB_F401.list
+ 
+
+17:52:35 Build Finished. 0 errors, 0 warnings. (took 984ms)
+
