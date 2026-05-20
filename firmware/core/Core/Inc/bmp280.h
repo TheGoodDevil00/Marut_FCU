@@ -8,17 +8,13 @@
 #ifndef INC_BMP280_H_
 #define INC_BMP280_H_
 
-#define BMP280_I2C_ADDR (0x76 << 1)
-
-
 #include "stm32f4xx.h"
-#include <math.h>
+#include <stdbool.h>
+#include <stdint.h>
 
-void bmp_hal_i2c_write(uint8_t reg_addr, uint8_t value);
-uint8_t bmp_hal_i2c_read(uint8_t reg_addr);
-double temperature(int x);
-double pressure(void);
-void bmp_i2c_setup(void);
-float altitude_calc(void);
+double bmp280_get_temperature(int x);
+double bmp280_get_pressure(void);
+void bmp280_i2c_setup(void);
+float bmp280_get_altitude(void);
 
 #endif /* INC_BMP280_H_ */
