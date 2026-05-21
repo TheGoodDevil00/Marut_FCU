@@ -26,7 +26,7 @@
 ../Core/Src/main.c:1407:6:arm_disarm	24	static,ignoring_inline_asm
 ../Core/Src/main.c:1474:6:mode_handler	32	static,ignoring_inline_asm
 ../Core/Src/main.c:1554:6:debounce_task	16	static
-../Core/Src/main.c:1575:6:quad_mode	40	static
+../Core/Src/main.c:1575:6:quad_mode	48	static
 ../Core/Src/main.c:1931:6:telemetry_task	16	static
 ../Core/Src/main.c:1982:6:fw_mode	40	static
 ../Core/Src/main.c:2101:6:vtol_task	16	static

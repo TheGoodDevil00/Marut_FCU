@@ -184,7 +184,7 @@ const osSemaphoreAttr_t timer_sem_attributes = {
 volatile uint16_t ppm_live_channels[10];
 volatile uint16_t ppm_ready_channels[10];
 
-uint16_t display_channels[8];
+uint16_t display_channels[10]; // NOTE : Keep Channels uniform
 volatile uint8_t pulse = 1;
 
 volatile uint8_t ppm_new_data_flag = 0;
@@ -1879,19 +1879,19 @@ void quad_mode(void *argument)
 
 				if (M1 > rc_max_us)
 				{
-					M1 = rc_max_us - 1;
+					M1 = rc_max_us;
 				}
 				if (M2 > rc_max_us)
 				{
-					M2 = rc_max_us - 1;
+					M2 = rc_max_us;
 				}
 				if (M3 > rc_max_us)
 				{
-					M3 = rc_max_us - 1;
+					M3 = rc_max_us;
 				}
 				if (M4 > rc_max_us)
 				{
-					M4 = rc_max_us - 1;
+					M4 = rc_max_us;
 				}
 
 				int ThrottleCutOff = 1000;
@@ -1966,7 +1966,7 @@ void telemetry_task(void *argument)
 
 		}
 
-		osDelay(1);
+		osDelay(500); // NOTE : Changed to 500 ms so doesn't consume a lot of cycles
 
 	}
   /* USER CODE END telemetry_task */
