@@ -30,27 +30,17 @@ extern float mag_adj_z;
 
 void mpu_init(void);
  
-float mpu_accel_read(int ret);
-float mpu_roll_pitch_read_accel(int ret);
-float mpu_accel_calibration(int axis);
+float mpu_accel_read(mpu_accel_raw *param);
+float mpu_roll_pitch_read_accel(accel_roll_pitch *data);
+float mpu_accel_calibration(accel_calib *offset);
 
-float mpu_gyro_read(int ret);
-float mpu_roll_pitch_read_gyro(int ret, float dt);
-float mpu_gyro_calibration(int axis);
+float mpu_gyro_read(mpu_gyro_raw *data);
+float mpu_roll_pitch_read_gyro(gyro_roll_pitch *data, float dt);
+float mpu_gyro_calibration(gyro_calib *data);
 
-float mpu_roll_pitch_calibration_accel(int rp);
-float mpu_roll_pitch_calibration_gyro(int rp);
+float mpu_roll_pitch_calibration_accel(accel_roll_pitch_calib_constant *calib);
+float mpu_roll_pitch_calibration_gyro(gyro_roll_pitch_calib_constant *data);
 
-
-typedef struct {
-    float q_angle;
-    float q_bias;
-    float r_measure;
-
-    float angle;
-    float bias;
-    float p[2][2];
-} kalman_t;
 
 double Kalman_get_angle(kalman_t *kalman,
                         double newAngle,

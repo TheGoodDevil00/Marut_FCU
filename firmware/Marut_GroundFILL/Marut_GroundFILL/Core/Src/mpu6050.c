@@ -26,6 +26,17 @@ static kalman_t kalmanX = { .q_angle = 0.001f, .q_bias = 0.003f, .r_measure = 1.
 
 static kalman_t kalmanY = { .q_angle = 0.001f, .q_bias = 0.003f, .r_measure = 0.80f, };
 
+typedef struct {
+    float q_angle;
+    float q_bias;
+    float r_measure;
+
+    float angle;
+    float bias;
+    float p[2][2];
+} kalman_t;
+
+
 typedef struct{
 	int16_t ax;
 	int16_t ay;
