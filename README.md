@@ -14,7 +14,7 @@ Marut FCU is a student-built open-source flight control unit developed with the 
 - **Full sensor stack:** The active targets integrate the expected FCU sensor layers for IMU, barometric altitude, magnetometer heading, and GPS parsing through target-specific modules.
 - **MAVLink telemetry contract:** The codebase implements MAVLink helpers for core GCS-facing telemetry including `HEARTBEAT`, `ATTITUDE`, `GPS_RAW_INT`, `GLOBAL_POSITION_INT`, and `BATTERY_STATUS`.
 - **FreeRTOS task model:** Firmware targets use CMSIS-RTOS v2 task definitions generated from CubeMX and implemented in handwritten `main.c` task bodies.
-- **Open hardware domains:** PCB assets and composite-domain scaffolding are versioned in the same repository so avionics, board, and vehicle contributors can work from the same project root.
+- **Open hardware domains:** PCB assets and composite-domain scaffolding are versioned in the same repository so avionics, board, and vehicle contributors can work from the same project root..
 - **Tracked release artifacts:** `Debug/` outputs, including `.elf` and related build files, are intentionally kept in version control as part of the repository workflow.
 
 ---
